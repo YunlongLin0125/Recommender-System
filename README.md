@@ -1,5 +1,7 @@
 # Recommender Systems: looking further into the future
 Progress about my dissertation project, welcome to feedback and suggestion.
+Contact: s2406121@ed.ac.uk
+
 
 ## Project Page:
 https://dpmt.inf.ed.ac.uk/msc/project/6930
