@@ -6,6 +6,8 @@ https://dpmt.inf.ed.ac.uk/msc/project/6930
 
 ## Potential dataset:
 RetailRocket: https://www.kaggle.com/datasets/retailrocket/ecommerce-dataset
+
+
 MovieLength:
 https://grouplens.org/datasets/movielens/
 
