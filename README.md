@@ -13,5 +13,7 @@ https://grouplens.org/datasets/movielens/
 
 ## State-of-the-art approaches:
 GRU4Rec: https://github.com/hidasib/GRU4Rec
+
 SASRec: https://github.com/kang205/SASRec
+
 BERT4Rec: https://github.com/FeiSun/BERT4Rec
