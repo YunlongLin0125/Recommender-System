@@ -14,8 +14,8 @@ MovieLength:
 https://grouplens.org/datasets/movielens/
 
 ## State-of-the-art approaches:
-GRU4Rec: https://github.com/hidasib/GRU4Rec
+GRU4Rec: https://github.com/hidasib/GRU4Rec, [paper](https://arxiv.org/abs/1511.06939)
 
-SASRec: https://github.com/kang205/SASRec
+SASRec: https://github.com/kang205/SASRec, [paper](https://arxiv.org/abs/1808.09781)
 
-BERT4Rec: https://github.com/FeiSun/BERT4Rec
+BERT4Rec: https://github.com/FeiSun/BERT4Rec, [paper](https://arxiv.org/abs/1904.06690)
