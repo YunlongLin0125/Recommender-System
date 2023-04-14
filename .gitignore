@@ -6,4 +6,4 @@ w5/meetings/
 datasets/ml-latest-small/
 datasets/Retailrocket/
 datasets/ml-1m
-.idea
+/datasets/processed_SASRec/m1_1m.txt
