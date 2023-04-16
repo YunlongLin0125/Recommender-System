@@ -26,8 +26,8 @@ data = data[np.in1d(data.SessionId, session_lengths[session_lengths>=2].index)]
 
 tmax = data.Time.max()
 session_max_times = data.groupby('SessionId').Time.max()
-session_train = session_max_times[session_max_times < tmax-86400].index
-session_test = session_max_times[session_max_times >= tmax-86400].index
+session_train = session_max_times[session_max_times < tmax-3].index # except the last 3 seconds
+session_test = session_max_times[session_max_times >= tmax-86400].index # test data only focus on the last day
 train = data[np.in1d(data.SessionId, session_train)]
 test = data[np.in1d(data.SessionId, session_test)]
 test = test[np.in1d(test.ItemId, train.ItemId)]
