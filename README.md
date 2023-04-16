@@ -21,7 +21,19 @@ SASRec: [code](https://github.com/kang205/SASRec), [paper](https://arxiv.org/abs
 BERT4Rec: [code](https://github.com/FeiSun/BERT4Rec), [paper](https://arxiv.org/abs/1904.06690)
 
 
-## Test Code:
+# Test Code:
+
+## SASRec
+### movieLens-1M:
+```
+python main.py --dataset=ml-1m_repro --train_dir=default --maxlen=200 --dropout_rate=0.2 --device=cuda
+```
+### RetailRocket:
+```
+python main.py --dataset=retailrocket --train_dir=default --maxlen=50 --dropout_rate=0.5 --device=cuda
+```
+
+## GRU4Rec
 ### movieLens-1M:
 ```
 python main.py --dataset=ml-1m_repro --train_dir=default --maxlen=200 --dropout_rate=0.2 --device=cuda
