@@ -35,7 +35,7 @@ cd models/SASRec
 python main.py --dataset=retailrocket --train_dir=default --maxlen=50 --dropout_rate=0.5 --device=cuda
 ```
 
-## GRU4Rec
+## GRU4Rec (Incomplete)
 ### movieLens-1M:
 ```
 cd models/GRU4Rec
