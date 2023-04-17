@@ -34,8 +34,8 @@ parser.add_argument('--time_sort', default=False, type=bool) #In case items are 
 parser.add_argument('--model_name', default='GRU4REC-CrossEntropy', type=str)
 parser.add_argument('--save_dir', default='models', type=str)
 parser.add_argument('--data_folder', default='data/preprocessed_data/', type=str)
-parser.add_argument('--train_data', default='ml-1m_train_tr.txt', type=str)
-parser.add_argument('--valid_data', default='ml-1m_train_valid.txt', type=str)
+parser.add_argument('--train_data', default='recSys15TrainOnly.txt', type=str)
+parser.add_argument('--valid_data', default='recSys15Valid.txt', type=str)
 parser.add_argument("--is_eval", action='store_true') #should be used during testing and eliminated during training
 parser.add_argument('--load_model', default=None,  type=str)
 parser.add_argument('--checkpoint_dir', type=str, default='checkpoint')
@@ -139,6 +139,8 @@ def main():
             evaluation = lib.Evaluation(model, loss_function, use_cuda=args.cuda, k = args.k_eval)
             loss, recall, mrr = evaluation.eval(valid_data, batch_size)
             print("Final result: recall = {:.2f}, mrr = {:.2f}".format(recall, mrr))
+            loss, hr, ndcg = evaluation.eval_SASRec(valid_data, batch_size)
+            print("Final result: Hit = {:.4f}, NDCG = {:.4f}".format(hr, ndcg))
         else:
             print("No Pretrained Model was found!")
 

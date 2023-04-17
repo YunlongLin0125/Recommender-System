@@ -8,3 +8,7 @@ datasets/Retailrocket/
 datasets/ml-1m
 /models/GRU4Rec/
 /models/GRU4REC-pytorch/checkpoint/
+/models/GRU4REC-pytorch/data/yoochoose-data/
+/models/GRU4REC-pytorch/data/preprocessed_data/recSys15Test.txt
+/models/GRU4REC-pytorch/data/preprocessed_data/recSys15TrainOnly.txt
+/models/GRU4REC-pytorch/data/preprocessed_data/recSys15Valid.txt
