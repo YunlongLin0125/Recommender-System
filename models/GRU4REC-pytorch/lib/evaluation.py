@@ -28,9 +28,13 @@ class Evaluation(object):
                 recall, mrr = lib.evaluate(logit, target, k=self.topk)
 
                 # torch.Tensor.item() to get a Python number from a tensor containing a single value
-                losses.append(loss.item())
+                # losses.append(loss.item())
                 recalls.append(recall)
-                mrrs.append(mrr)
+                # mrrs.append(mrr)
+                losses.append(loss.cpu().item())
+                recalls.append(recall)
+                mrrs.append(mrr.cpu().item())
+
         mean_losses = np.mean(losses)
         mean_recall = np.mean(recalls)
         mean_mrr = np.mean(mrrs)

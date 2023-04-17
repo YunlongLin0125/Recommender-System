@@ -7,3 +7,4 @@ datasets/ml-latest-small/
 datasets/Retailrocket/
 datasets/ml-1m
 /models/GRU4Rec/
+/models/GRU4REC-pytorch/checkpoint/
