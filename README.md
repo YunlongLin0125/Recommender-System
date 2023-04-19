@@ -14,9 +14,9 @@ MovieLength:
 https://grouplens.org/datasets/movielens/
 
 ## State-of-the-art approaches:
-GRU4Rec: [code](https://github.com/hidasib/GRU4Rec), [pytorch_code](https://github.com/hungthanhpham94/GRU4REC-pytorch) [paper](https://arxiv.org/abs/1511.06939)
+GRU4Rec: [code](https://github.com/hidasib/GRU4Rec), [pytorch_version](https://github.com/hungthanhpham94/GRU4REC-pytorch), [paper](https://arxiv.org/abs/1511.06939)
 
-SASRec: [code](https://github.com/kang205/SASRec),[pytorch_code](https://github.com/pmixer/SASRec.pytorch)  [paper](https://arxiv.org/abs/1808.09781)
+SASRec: [code](https://github.com/kang205/SASRec), [pytorch_version](https://github.com/pmixer/SASRec.pytorch),  [paper](https://arxiv.org/abs/1808.09781)
 
 BERT4Rec: [code](https://github.com/FeiSun/BERT4Rec), [paper](https://arxiv.org/abs/1904.06690)
 
