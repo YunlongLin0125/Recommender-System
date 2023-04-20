@@ -12,3 +12,4 @@ datasets/ml-1m
 /models/GRU4REC-pytorch/data/preprocessed_data/recSys15Test.txt
 /models/GRU4REC-pytorch/data/preprocessed_data/recSys15TrainOnly.txt
 /models/GRU4REC-pytorch/data/preprocessed_data/recSys15Valid.txt
+/IPP/IPP_feedback/

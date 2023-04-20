@@ -1,0 +1,22 @@
+Typo-fixed
+1.3 Timeliness and Novelty
+1.6 Beneficiaries (focusing more on the customer / user and their experience.)
+
+2. KNN 
+	(add a interesing quota)
+2. SASRec 
+	(add parallel computation intro)
+
+3. Next-item prediction model: 
+	1. add some brief evaluation method on different potential modification.
+	2. specificy the model to transformer-based (SASRec)
+3. Multi-day window prediction model:
+	1. add normal case \-> dense all action loss
+3. Further experiments:
+	clarify 'temporal likelihood'
+
+4. Evaluation: 
+	add fair comparison
+
+5. Expected Outcomes:
+	+ Specific/clarification
