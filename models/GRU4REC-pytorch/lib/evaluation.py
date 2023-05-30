@@ -41,13 +41,13 @@ class Evaluation(object):
 
         return mean_losses, mean_recall, mean_mrr
 
-    def hit_ratio_at_k(self, rankings, k):
-        return 1.0 if any(rank < k for rank in rankings) else 0.0
+    def hit_ratio_at_k(self, rankings):
+        return np.array([1.0 if any(rank < self.topk for rank in ranks) else 0.0 for ranks in rankings])
 
-    def ndcg_at_k(self, rankings, k):
-        return sum(1.0 / np.log2(rank + 2) for rank in rankings if rank < k)
+    def ndcg_at_k(self, rankings):
+        return np.array([sum(1.0 / np.log2(rank + 2) for rank in ranks if rank < self.topk) for ranks in rankings])
 
-    def eval_SASRec(self, eval_data, batch_size, k):
+    def eval_SASRec(self, eval_data, batch_size):
         self.model.eval()
         losses = []
         hit_ratios = []
@@ -69,12 +69,12 @@ class Evaluation(object):
                 target_rankings = np.array([np.argwhere(row == target[i].item()) for i, row in enumerate(rankings)])
 
                 # Compute Hit Ratio@k and NDCG@k
-                hit_ratio = self.hit_ratio_at_k(target_rankings, k)
-                ndcg = self.ndcg_at_k(target_rankings, k)
-
+                hit_ratio = self.hit_ratio_at_k(target_rankings)
+                ndcg = self.ndcg_at_k(target_rankings)
                 losses.append(loss.cpu().item())
-                hit_ratios.append(hit_ratio)
-                ndcgs.append(ndcg)
+
+                hit_ratios.extend(hit_ratio)
+                ndcgs.extend(ndcg)
 
         mean_losses = np.mean(losses)
         mean_hit_ratios = np.mean(hit_ratios)

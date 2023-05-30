@@ -13,7 +13,7 @@ class Trainer(object):
         self.eval_data = eval_data
         self.optim = optim
         self.loss_func = loss_func
-        self.evaluation = lib.Evaluation(self.model, self.loss_func, use_cuda, k = args.k_eval)
+        self.evaluation = lib.Evaluation(self.model, self.loss_func, use_cuda, k=args.k_eval)
         self.device = torch.device('cuda' if use_cuda else 'cpu')
         self.batch_size = batch_size
         self.args = args
@@ -29,9 +29,15 @@ class Trainer(object):
             print('Start Epoch #', epoch)
             train_loss = self.train_epoch(epoch)
             loss, recall, mrr = self.evaluation.eval(self.eval_data, self.batch_size)
+            loss, hr, ndcg = self.evaluation.eval_SASRec(self.eval_data, self.batch_size)
 
-
-            print("Epoch: {}, train loss: {:.4f}, loss: {:.4f}, recall: {:.4f}, mrr: {:.4f}, time: {}".format(epoch, train_loss, loss, recall, mrr, time.time() - st))
+            print("Epoch: {}, train loss: {:.4f}, loss: {:.4f}, recall: {:.4f}, mrr: {:.4f}, time: {}".format(epoch,
+                                                                                                              train_loss,
+                                                                                                              loss,
+                                                                                                              recall,
+                                                                                                              mrr,
+                                                                                                              time.time() - st))
+            print("hr: {:.4f}, ndcg: {:.4f}".format(np.mean(hr), np.mean(ndcg)))
             checkpoint = {
                 'model': self.model,
                 'args': self.args,
@@ -45,7 +51,6 @@ class Trainer(object):
             torch.save(checkpoint, model_name)
             print("Save model as %s" % model_name)
 
-
     def train_epoch(self, epoch):
         self.model.train()
         losses = []
@@ -58,8 +63,9 @@ class Trainer(object):
 
         hidden = self.model.init_hidden()
         dataloader = lib.DataLoader(self.train_data, self.batch_size)
-        #for ii,(data,label) in tqdm(enumerate(train_dataloader),total=len(train_data)):
-        for ii, (input, target, mask) in tqdm(enumerate(dataloader), total=len(dataloader.dataset.df) // dataloader.batch_size, miniters = 1000):
+        # for ii,(data,label) in tqdm(enumerate(train_dataloader),total=len(train_data)):
+        for ii, (input, target, mask) in tqdm(enumerate(dataloader),
+                                              total=len(dataloader.dataset.df) // dataloader.batch_size, miniters=1000):
             input = input.to(self.device)
             target = target.to(self.device)
             self.optim.zero_grad()
