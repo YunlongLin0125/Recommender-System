@@ -1,0 +1,36 @@
+
+The slides shows something I learned from last week, focus on some simple components and some basic ideas.
+the first slide contains some overview of Seq rec, firstly the input and output.
+A sequential recommender system is referred to a system which takes a user’s behavior trajectories as input, and output the recommended items or services to the user.
+
+The main type of sequential recommender can be splitted into two types,
+In next-item recommendation, a behavior contains only one object (i.e., item), which could be a product, a song, a movie, or a location. In contrast, in next-basket recommendation, a behavior contains more than one object. To clarify our topic, I think our project will focus on next-item prediction. The reading also suggests a baseline called GRU4Rec, which is commonly mentioned in main papers, we may use as our baseline model.
+
+I draw the struture of SASRec by myself, I am not sure all parts of this diagram are correct. This is the first transformer-based approach in Sequential recommender. What is different here, I think the input may contains behavior types but they just mention behavior objects in the paper. And compared with traditional Sequential model which commonly use RNN structure, transformer's self-attention mechanism helps a lot in sequential recommender. the recommender first vectorize the input using embedding matrix, and transformer block output the more contextualized items embedding, then combined with implicit user embedding, and finally the (matrix factorization) layer is used to produces the final prediction scores for the next item in the sequence.
+
+difference implicit user embedding and explicit user embedding: 
+Implicit user embedding learned from implicit users' feedback like ratings and reviews.
+explicit user embedding learned from explicit users' behavior.
+
+The author also mention that they find explicit user embedding does not improve model performance because the input considering all actions of a user.
+
+I think the current trends for sequential recommender still focus on improved RNN and Transformer.
+
+
+DATASET:
+I look on the two datasets given in the project website.
+
+the movie lengths dataset can be used to do a sequential movie recommendation task, some datas can be used to help with item embedding here is movie embedding, and ratings and tags can be used to explicit user embedding.
+
+RetailRocket can be used to build a sequential recommender for e-commerce site. The Behavior type is clearly shown in the data (“view”, “addtocart” or “transaction”.). and also behavior objects. we should learn a implicit user embedding in this task.
+
+And There is a common approach in SASRec, we can split the historical sequence for each user into three parts:
+the most recent action for testing
+the second most recent action for validation
+all remaining actions for training.
+
+
+matrixs
+
+
+

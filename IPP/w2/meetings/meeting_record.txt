@@ -1,0 +1,13 @@
+incremental reading: avoid train the past data overlap.
+retrain the model to fit the 
+or reuse the model 
+Why window useful: learn more about the customer
+label to state the window structure?
+
+different models to fit different windows?
+
+
+window based recommendations
+ 
+what should be the next step of our project,
+this week goal: clarify the topic, dataset

@@ -1,0 +1,39 @@
+Name
+Major:AI
+Experience:
+Familiar with deep learning-based
+transformer based
+Pytorch, GPU
+Dataset: 
+MovieLens: Movie recommendation
+	movies: movie_id title, genres
+	links: movie imdb_id tmdb_id
+	tags: users tag movie timestamp
+	ratings: users movie rate timestamp
+ recommend a single item
+Retailrocket:
+	view---add to cart---transaction
+
+
+Difference: traditional system recommend a single item, we output a sequence like amazon does.
+input,output: input sequence, output sequence.
+So this is still a individual project, but each student focuses their own direction, but actually they have something in similar.
+Goal:
+build a sequence prediction model.
+
+Questions:
+what could be the labels? do you have some recommendation?
+we can vectorize the input when preparing data.
+
+
+
+
+--------------------
+4.25th
+may meet in person
+ranker and reranker
+baseline with existing paper
+
+next time:
+dataset
+GPT-4
