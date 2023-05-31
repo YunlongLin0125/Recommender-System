@@ -28,8 +28,8 @@ parser.add_argument('--inference_only', default=False, type=str2bool)
 parser.add_argument('--state_dict_path', default=None, type=str)
 
 args = parser.parse_args()
-dataset = data_partition(args.dataset)
-args.dataset = 'reproduce/' + args.dataset
+# dataset = data_partition(args.dataset)
+# args.dataset = 'reproduce/' + args.dataset
 if not os.path.isdir(args.dataset + '_' + args.train_dir):
     os.makedirs(args.dataset + '_' + args.train_dir)
 with open(os.path.join(args.dataset + '_' + args.train_dir, 'args.txt'), 'w') as f:
@@ -38,7 +38,7 @@ f.close()
 
 if __name__ == '__main__':
     # global dataset
-    # dataset = data_partition(args.dataset)
+    dataset = data_partition(args.dataset)
 
     [user_train, user_valid, user_test, usernum, itemnum] = dataset
     num_batch = len(user_train) // args.batch_size # tail? + ((len(user_train) % args.batch_size) != 0)
