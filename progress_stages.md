@@ -26,5 +26,13 @@
 
 ```
 1. reproduce GRU4Rec with recSys15 dataset (R@20:0.4833; mrr:0.1477)
+2. test Eddie for GPU use (Pytorch)
+```
+
+## 604 (Sun.)
+
+```
+1. slides preparation
+2. reproduce GRU4Rec's dataset splitting strategy
 ```
 

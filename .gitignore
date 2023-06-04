@@ -23,3 +23,6 @@ datasets/ml-1m
 /IPP/w6/IPP_2406121_V2.pdf
 /IPP/w6/B228183.pdf
 /week0/IPP_report.pdf
+/models/GRU4REC-pytorch/data/processed_small/
+/models/GRU4REC-pytorch/data/raw_data/
+/test.ipynb
