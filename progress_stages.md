@@ -36,3 +36,8 @@
 2. reproduce GRU4Rec's dataset splitting strategy
 ```
 
+## 605 (Mon.)
+
+```
+1. slides preparation
+```
