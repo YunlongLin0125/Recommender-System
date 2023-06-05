@@ -26,3 +26,5 @@ datasets/ml-1m
 /models/GRU4REC-pytorch/data/processed_small/
 /models/GRU4REC-pytorch/data/raw_data/
 /test.ipynb
+/models/GRU4REC-pytorch/data/preprocessed_data/
+
