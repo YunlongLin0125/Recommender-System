@@ -40,4 +40,5 @@
 
 ```
 1. slides preparation
+2. Review what have done, look on what need to be done in the future
 ```
