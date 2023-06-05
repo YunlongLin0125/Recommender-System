@@ -28,3 +28,4 @@ datasets/ml-1m
 /test.ipynb
 /models/GRU4REC-pytorch/data/preprocessed_data/
 
+/week1/scripts.txt
