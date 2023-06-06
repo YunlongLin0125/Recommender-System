@@ -6,6 +6,7 @@ import numpy as np
 from collections import defaultdict
 from multiprocessing import Process, Queue
 
+
 # sampler for batch generation
 def random_neq(l, r, s):
     t = np.random.randint(l, r)
@@ -104,6 +105,7 @@ def data_partition(fname):
             user_test[user].append(User[user][-1])
     return [user_train, user_valid, user_test, usernum, itemnum]
 
+
 # TODO: merge evaluate functions for test and val set
 # evaluate on test set
 def evaluate(model, dataset, args):
@@ -113,7 +115,7 @@ def evaluate(model, dataset, args):
     HT = 0.0
     valid_user = 0.0
 
-    if usernum>10000:
+    if usernum > 10000:
         users = random.sample(range(1, usernum + 1), 10000)
     else:
         users = range(1, usernum + 1)
@@ -138,7 +140,7 @@ def evaluate(model, dataset, args):
             item_idx.append(t)
 
         predictions = -model.predict(*[np.array(l) for l in [[u], [seq], item_idx]])
-        predictions = predictions[0] # - for 1st argsort DESC
+        predictions = predictions[0]  # - for 1st argsort DESC
 
         rank = predictions.argsort().argsort()[0].item()
 
@@ -161,7 +163,8 @@ def evaluate_valid(model, dataset, args):
     NDCG = 0.0
     valid_user = 0.0
     HT = 0.0
-    if usernum>10000:
+    item_set = set(range(1, itemnum + 1))
+    if usernum > 10000:
         users = random.sample(range(1, usernum + 1), 10000)
     else:
         users = range(1, usernum + 1)
@@ -178,11 +181,15 @@ def evaluate_valid(model, dataset, args):
         rated = set(train[u])
         rated.add(0)
         item_idx = [valid[u][0]]
-        for _ in range(100):
-            t = np.random.randint(1, itemnum + 1)
-            while t in rated: t = np.random.randint(1, itemnum + 1)
-            item_idx.append(t)
 
+        item_set = set(range(1, itemnum + 1))
+        item_set = item_set - rated
+        item_idx += list(item_set)
+        # only sampling 100 instances
+        # for _ in range(100):
+        #     t = np.random.randint(1, itemnum + 1)
+        #     while t in rated: t = np.random.randint(1, itemnum + 1)
+        #     item_idx.append(t)
         predictions = -model.predict(*[np.array(l) for l in [[u], [seq], item_idx]])
         predictions = predictions[0]
 
@@ -198,3 +205,51 @@ def evaluate_valid(model, dataset, args):
             sys.stdout.flush()
 
     return NDCG / valid_user, HT / valid_user
+
+
+# def evaluate_window_valid(model, dataset, args):
+#     [train, valid, test, usernum, itemnum] = copy.deepcopy(dataset)
+#
+#     Recall = 0.0
+#     P90 = 0.0
+#     valid_user = 0.0
+#     if usernum > 10000:
+#         # avoid too many training users
+#         # keep at most 10000 users
+#         users = random.sample(range(1, usernum + 1), 10000)
+#     else:
+#         # else keep all the users
+#         users = range(1, usernum + 1)
+#     for u in users:
+#         # make sure the sequence can be set to validate
+#         if len(train[u]) < 1 or len(valid[u]) < 1: continue
+#
+#         seq = np.zeros([args.maxlen], dtype=np.int32)
+#         idx = args.maxlen - 1
+#         for i in reversed(train[u]):
+#             seq[idx] = i
+#             idx -= 1
+#             if idx == -1: break
+#
+#         rated = set(train[u])
+#         rated.add(0)
+#         item_idx = [valid[u][0]]
+#         for _ in range(100):
+#             t = np.random.randint(1, itemnum + 1)
+#             while t in rated: t = np.random.randint(1, itemnum + 1)
+#             item_idx.append(t)
+#
+#         predictions = -model.predict(*[np.array(l) for l in [[u], [seq], item_idx]])
+#         predictions = predictions[0]
+#
+#         rank = predictions.argsort().argsort()[0].item()
+#
+#         valid_user += 1
+#
+#         if rank < 10:
+#             NDCG += 1 / np.log2(rank + 2)
+#             HT += 1
+#         if valid_user % 100 == 0:
+#             print('.', end="")
+#             sys.stdout.flush()
+#     return NDCG / valid_user, HT / valid_user
