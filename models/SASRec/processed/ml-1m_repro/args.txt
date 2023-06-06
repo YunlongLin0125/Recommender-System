@@ -1,5 +1,5 @@
 batch_size,128
-dataset,reproduce/processed/ml-1m
+dataset,processed/ml-1m
 device,cuda
 dropout_rate,0.2
 hidden_units,50

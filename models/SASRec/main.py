@@ -5,7 +5,9 @@ import argparse
 
 from model import SASRec
 from utils import *
-
+import time
+start_time = time.time()
+print(start_time)
 def str2bool(s):
     if s not in {'false', 'true'}:
         raise ValueError('Not a valid boolean string')
@@ -130,3 +132,6 @@ if __name__ == '__main__':
     f.close()
     sampler.close()
     print("Done")
+    end_time = time.time()
+    execution_time = end_time - start_time
+    print("Execution time:", execution_time, "seconds")

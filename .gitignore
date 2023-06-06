@@ -29,3 +29,4 @@ datasets/ml-1m
 /models/GRU4REC-pytorch/data/preprocessed_data/
 
 /week1/scripts.txt
+/week1/next_steps.txt
