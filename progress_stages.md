@@ -42,3 +42,21 @@
 1. slides preparation
 2. Review what have done, look on what need to be done in the future
 ```
+
+# Week 1
+
+## 606(Tues.)
+
+```
+1. try Recall@k evaluation metrix
+2. understand P90 coverage@k
+```
+
+## 607 (Wed.)
+
+```
+1. Reread SASRec, Pinnerformer.
+Why sampled softmax in Pinnerformer but the P90 coverage still works?
+2. Try to implement P90 coverage@k.
+```
+
