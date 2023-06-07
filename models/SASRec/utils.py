@@ -207,49 +207,55 @@ def evaluate_valid(model, dataset, args):
     return NDCG / valid_user, HT / valid_user
 
 
-# def evaluate_window_valid(model, dataset, args):
-#     [train, valid, test, usernum, itemnum] = copy.deepcopy(dataset)
-#
-#     Recall = 0.0
-#     P90 = 0.0
-#     valid_user = 0.0
-#     if usernum > 10000:
-#         # avoid too many training users
-#         # keep at most 10000 users
-#         users = random.sample(range(1, usernum + 1), 10000)
-#     else:
-#         # else keep all the users
-#         users = range(1, usernum + 1)
-#     for u in users:
-#         # make sure the sequence can be set to validate
-#         if len(train[u]) < 1 or len(valid[u]) < 1: continue
-#
-#         seq = np.zeros([args.maxlen], dtype=np.int32)
-#         idx = args.maxlen - 1
-#         for i in reversed(train[u]):
-#             seq[idx] = i
-#             idx -= 1
-#             if idx == -1: break
-#
-#         rated = set(train[u])
-#         rated.add(0)
-#         item_idx = [valid[u][0]]
-#         for _ in range(100):
-#             t = np.random.randint(1, itemnum + 1)
-#             while t in rated: t = np.random.randint(1, itemnum + 1)
-#             item_idx.append(t)
-#
-#         predictions = -model.predict(*[np.array(l) for l in [[u], [seq], item_idx]])
-#         predictions = predictions[0]
-#
-#         rank = predictions.argsort().argsort()[0].item()
-#
-#         valid_user += 1
-#
-#         if rank < 10:
-#             NDCG += 1 / np.log2(rank + 2)
-#             HT += 1
-#         if valid_user % 100 == 0:
-#             print('.', end="")
-#             sys.stdout.flush()
-#     return NDCG / valid_user, HT / valid_user
+def evaluate_window_valid(model, dataset, args):
+    [train, valid, test, usernum, itemnum] = copy.deepcopy(dataset)
+    Recall = 0.0
+    P90 = 0.0
+    # P90 coverage means the smallest item sets that appear in the top 10 lists of at least 90% of the users.
+    valid_user = 0.0
+    sample_nums = 500
+    random_items = random.sample(range(1, itemnum + 1), sample_nums)
+    # if usernum > 10000:
+    #     # avoid too many training users
+    #     # keep at most 10000 users
+    #     users = random.sample(range(1, usernum + 1), 10000)
+    # else:
+    #     # else keep all the users
+    #     users = range(1, usernum + 1)
+    users = range(1, usernum+1)
+    for u in users:
+        # make sure the sequence can be validated
+        if len(train[u]) < 1 or len(valid[u]) < 1: continue
+        seq = np.zeros([args.maxlen], dtype=np.int32)
+        idx = args.maxlen - 1
+        for i in reversed(train[u]):
+            seq[idx] = i
+            # fill the sequence from end to beginning
+            idx -= 1
+            if idx == -1: break
+            # select the max len or all of the training data in the sequence
+            # limit the length, seq contains the actual training sequence
+        rated = set(train[u])
+        rated.add(0)
+        # all items interacted by the current user
+        item_idx = [valid[u][0]]
+        # get the index of validated item
+        for _ in range(100):
+            # negative sampling
+            t = np.random.randint(1, itemnum + 1)
+            # randomly sample 100 items
+            while t in rated: t = np.random.randint(1, itemnum + 1)
+            item_idx.append(t)
+        predictions = -model.predict(*[np.array(l) for l in [[u], [seq], item_idx]])
+        # predicting the recommendation list
+        predictions = predictions[0]
+        rank = predictions.argsort().argsort()[0].item()
+        # the rank of the expected next single item
+        valid_user += 1
+        if rank < 10:
+            Recall += 1
+            # P90 coverage
+        if valid_user % 100 == 0:
+            print('.', end="")
+            sys.stdout.flush()
+    return Recall / valid_user, P90 / valid_user

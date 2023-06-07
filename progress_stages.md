@@ -45,7 +45,7 @@
 
 # Week 1
 
-## 606(Tues.)
+## 606 (Tues.)
 
 ```
 1. try Recall@k evaluation metrix
@@ -58,5 +58,31 @@
 1. Reread SASRec, Pinnerformer.
 Why sampled softmax in Pinnerformer but the P90 coverage still works?
 2. Try to implement P90 coverage@k.
+```
+
+### Q:
+
+```
+1. Sampled softmax vs. Full softmax.
+SASRec only use 100 random samples, even in the evaluation, which will make a higher R@10. But during the inference, we need a full softmax to get a more accurate result, but SASRec still combine the groundtruth with 100 unifirm negative samples.
+2. P90 coverage@10 in Pinnerformer.
+'we compute embeddings at time 𝑡 for all users in the evaluation set, and then measure how well the embedding at time 𝑡 retrieves all Pins a user will engage with from time 𝑡 to 𝑡 + 14𝑑 from an index of 1M random Pins. Assuming we have a set of users, U, a set of positively engaged Pins P𝑈 for each user 𝑈 , and a random corpus of 1M Pins N'
+the positive engagements includes in 1M pins N or not?
+=> 
+positive engaged Pins P + negative random sampling = 1M 
+OR
+randoms corpus = 1M. (currently implemented)
+Result in different P90 Coverage@10.
+
+what fraction of the index of 1M Pins accounts for 90% of the top 10 retrieved results over a set of users ("P90 Coverage@10").
+
+```
+
+## 608 (Thur.)
+
+```
+1. Change the data feeding in SASRec.
+2. Split the dataset for the window-based predictor.
+3. Implement a easy model can handle the window-based predictor (modification on the data reading step of the SASRec code)
 ```
 
