@@ -26,23 +26,33 @@ BERT4Rec: [code](https://github.com/FeiSun/BERT4Rec), [paper](https://arxiv.org/
 ### movieLens-1M:
 ```
 cd models/SASRec
-python main.py --dataset=ml-1m_repro --train_dir=default --maxlen=200 --dropout_rate=0.2 --device=cuda
+python main.py --dataset=ml-1m --train_dir="store_filepath" --maxlen=200 --dropout_rate=0.2 --device=cuda
 ```
 ### RetailRocket:
 
 ```
 cd models/SASRec
-python main.py --dataset=retailrocket --train_dir=default --maxlen=50 --dropout_rate=0.5 --device=cuda
+python main.py --dataset=retailrocket --train_dir="store_filepath" --maxlen=50 --dropout_rate=0.5 --device=cuda
 ```
 
-## GRU4Rec (Incomplete)
-### movieLens-1M:
-```
-cd models/GRU4Rec
-python main.py --dataset=ml-1m_repro --train_dir=default --maxlen=200 --dropout_rate=0.2 --device=cuda
-```
-### RetailRocket:
-```
-cd models/GRU4Rec
-python main.py --dataset=retailrocket --train_dir=default --maxlen=50 --dropout_rate=0.5 --device=cuda
-```
+[//]: # (## GRU4Rec &#40;Incomplete&#41;)
+
+[//]: # (### movieLens-1M:)
+
+[//]: # (```)
+
+[//]: # (cd models/GRU4Rec)
+
+[//]: # (python main.py --dataset=ml-1m_repro --train_dir=default --maxlen=200 --dropout_rate=0.2 --device=cuda)
+
+[//]: # (```)
+
+[//]: # (### RetailRocket:)
+
+[//]: # (```)
+
+[//]: # (cd models/GRU4Rec)
+
+[//]: # (python main.py --dataset=retailrocket --train_dir=default --maxlen=50 --dropout_rate=0.5 --device=cuda)
+
+[//]: # (```)
