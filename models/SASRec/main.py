@@ -37,7 +37,7 @@ parser.add_argument('--window_eval', default=False, type=str2bool)
 parser.add_argument('--eval_epoch', default=20, type=int)
 
 args = parser.parse_args()
-# dataset = data_partition(args.dataset)
+# dataset = data_partition(args.dataset)data
 # args.dataset = 'reproduce/' + args.dataset
 if not os.path.isdir(args.dataset + '_' + args.train_dir):
     os.makedirs(args.dataset + '_' + args.train_dir)
@@ -48,11 +48,11 @@ f.close()
 if __name__ == '__main__':
     # global dataset
     dataset = data_partition(args.dataset)
+    dataset_window = data_partition_window_P(args.dataset, valid_percent=0.2, test_percent=0.2, train_percent=0.2)
     [user_train, user_valid, user_test, usernum, itemnum] = dataset
     sample_train = user_train
     if args.window_predictor:
-        dataset_window = data_partition_window(args.dataset)
-        [sample_train, _, _, usernum, _] = dataset_window
+        [sample_train, user_train_seq, _, _, usernum, _] = dataset_window
     num_batch = len(sample_train) // args.batch_size  # tail? + ((len(user_train) % args.batch_size) != 0)
     cc = 0.0
     for u in sample_train:
@@ -64,7 +64,7 @@ if __name__ == '__main__':
 
     sampler = WarpSampler(sample_train, usernum, itemnum, batch_size=args.batch_size, maxlen=args.maxlen, n_workers=3)
     model = SASRec(usernum, itemnum, args).to(args.device)  # no ReLU activation in original SASRec implementation?
-    
+
     for name, param in model.named_parameters():
         try:
             torch.nn.init.xavier_normal_(param.data)
@@ -133,8 +133,8 @@ if __name__ == '__main__':
                 print('epoch:%d, time: %f(s), valid (NDCG@10: %.4f, HR@10: %.4f), test (NDCG@10: %.4f, HR@10: %.4f)'
                       % (epoch, T, t_valid[0], t_valid[1], t_test[0], t_test[1]))
             else:
-                t_valid = evaluate_window_valid(model, dataset, args)
-                t_test = evaluate_window_test(model, dataset, args)
+                t_valid = evaluate_window_valid(model, dataset, dataset_window, args)
+                t_test = evaluate_window_test(model, dataset, dataset_window, args)
                 print('epoch:%d, time: %f(s), valid (R@10: %.4f, P90coverage@10: %.4f), test (R@10: %.4f, '
                       'P90coverage@10: %.4f)'
                       % (epoch, T, t_valid[0], t_valid[1], t_test[0], t_test[1]))

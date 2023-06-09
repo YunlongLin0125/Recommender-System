@@ -80,6 +80,70 @@ class WarpSampler(object):
             p.join()
 
 
+def data_partition_window_P(fname, valid_percent, test_percent, train_percent):
+    if valid_percent + test_percent > 0.6:
+        print('the percent you select for val/test are too high')
+        return None
+    valid_start = 1 - valid_percent - test_percent
+    test_start = 1 - test_percent
+    train_start = 1 - train_percent
+    usernum = 0
+    itemnum = 0
+    User = defaultdict(list)
+    user_train_seq = {}
+    user_train = {}
+    user_valid = {}
+    user_test = {}
+    # assume user/item index starting from 1
+    f = open('data/%s.txt' % fname, 'r')
+    # read from each line
+    for line in f:
+        u, i = line.rstrip().split(' ')
+        u = int(u)
+        i = int(i)
+        usernum = max(u, usernum)
+        itemnum = max(i, itemnum)
+        User[u].append(i)
+        # count user and items
+    # read from each user
+    count = 0
+    for user in User:
+        nfeedback = len(User[user])
+        if nfeedback < 3:
+            user_train[user] = User[user]
+            user_valid[user] = []
+            user_test[user] = []
+        else:
+            # select the whole training seq
+            # user_train[user] = User[user][:-2]
+            seq_len = len(User[user])
+            valid_index = int(seq_len * valid_start)
+            test_index = int(seq_len * test_start)
+            if valid_index == test_index:
+                user_train[user] = User[user]
+                user_valid[user] = []
+                user_test[user] = []
+            else:
+                train_seq = User[user][: valid_index]
+
+                valid_seq = User[user][valid_index: test_index]
+                test_seq = User[user][test_index:]
+                train_seq_length = len(train_seq)
+                split_index = int(train_seq_length * train_start)
+                input_seq = train_seq[:split_index]
+                target_seq = train_seq[split_index:]
+                for target in target_seq:
+                    count += 1
+                    user_train[count] = input_seq + [target]
+                user_train_seq[user] = []
+                user_train_seq[user] += train_seq
+                user_valid[user] = []
+                user_valid[user] += valid_seq
+                user_test[user] = []
+                user_test[user] += test_seq
+    return [user_train, user_train_seq, user_valid, user_test, usernum, itemnum]
+
+
 def data_partition_window(fname):
     usernum = 0
     itemnum = 0
@@ -265,9 +329,11 @@ def evaluate_valid(model, dataset, args):
     return NDCG / valid_user, HT / valid_user
 
 
-def evaluate_window_valid(model, dataset, args):
+def evaluate_window_valid(model, dataset, dataset_window, args):
     [train, valid, test, usernum, itemnum] = copy.deepcopy(dataset)
+    [_, train, valid, test, _, itemnum] = copy.deepcopy(dataset_window)
     Recall = 0.0
+    Recall_U = 0.0
     coverage_list = []
     # P90 coverage means the smallest item sets that appear in the top 10 lists of at least 90% of the users.
     valid_user = 0.0
@@ -291,19 +357,24 @@ def evaluate_window_valid(model, dataset, args):
         rated = set(train[u])
         rated.add(0)
         # ground truth item
-        ground_truth_idx = [valid[u][0]]
+        ground_truth_idx = valid[u]
+        valid_num = len(valid[u])
         # collect all indexes, which needs to process on
         process_idx = ground_truth_idx + sample_idx
         predictions = -model.predict(*[np.array(l) for l in [[u], [seq], process_idx]])[0]
         # target distance
-        target_d = predictions[0]
+        target_ds = predictions[:valid_num]
         # sampled results
-        sample_d = predictions[1:]
+        sample_d = predictions[valid_num:]
         # print(len(sample_d))
-        bool_tensor = target_d >= sample_d
-        count = torch.sum(bool_tensor).item()
-        if count < 10:
-            Recall += 1
+        for target_d in target_ds:
+            bool_tensor = target_d >= sample_d
+            count = torch.sum(bool_tensor).item()
+            if count < 10:
+                Recall_U += 1
+        Recall_U = Recall_U / valid_num
+        Recall += Recall_U
+        Recall_U = 0
         sorted_indices = torch.argsort(sample_d)
         sorted_sample_idx = sample_idx_tensor[sorted_indices]
         # take the coverage@10 for all users
@@ -325,9 +396,11 @@ def evaluate_window_valid(model, dataset, args):
     return Recall / valid_user, item_count / sample_nums
 
 
-def evaluate_window_test(model, dataset, args):
+def evaluate_window_test(model, dataset, dataset_window, args):
     [train, valid, test, usernum, itemnum] = copy.deepcopy(dataset)
+    [_, train, valid, test, _, itemnum] = copy.deepcopy(dataset_window)
     Recall = 0.0
+    Recall_U = 0.0
     coverage_list = []
     # P90 coverage means the smallest item sets that appear in the top 10 lists of at least 90% of the users.
     valid_user = 0.0
@@ -340,9 +413,7 @@ def evaluate_window_test(model, dataset, args):
         if len(train[u]) < 1 or len(test[u]) < 1: continue
         seq = np.zeros([args.maxlen], dtype=np.int32)
         idx = args.maxlen - 1
-        seq[idx] = valid[u][0]
-        idx -= 1
-        for i in reversed(train[u]):
+        for i in reversed(train[u] + valid[u]):
             seq[idx] = i
             # fill the sequence from end to beginning
             idx -= 1
@@ -353,19 +424,24 @@ def evaluate_window_test(model, dataset, args):
         rated = set(train[u])
         rated.add(0)
         # ground truth item
-        ground_truth_idx = [test[u][0]]
+        ground_truth_idx = test[u]
+        test_num = len(test[u])
         # collect all indexes, which needs to process on
         process_idx = ground_truth_idx + sample_idx
         predictions = -model.predict(*[np.array(l) for l in [[u], [seq], process_idx]])[0]
         # target distance
-        target_d = predictions[0]
+        target_ds = predictions[:test_num]
         # sampled results
-        sample_d = predictions[1:]
+        sample_d = predictions[test_num:]
         # print(len(sample_d))
-        bool_tensor = target_d >= sample_d
-        count = torch.sum(bool_tensor).item()
-        if count < 10:
-            Recall += 1
+        for target_d in target_ds:
+            bool_tensor = target_d >= sample_d
+            count = torch.sum(bool_tensor).item()
+            if count < 10:
+                Recall_U += 1
+        Recall_U = Recall_U / test_num
+        Recall += Recall_U
+        Recall_U = 0
         sorted_indices = torch.argsort(sample_d)
         sorted_sample_idx = sample_idx_tensor[sorted_indices]
         # take the coverage@10 for all users
