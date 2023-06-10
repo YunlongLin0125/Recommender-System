@@ -125,7 +125,6 @@ def data_partition_window_P(fname, valid_percent, test_percent, train_percent):
                 user_test[user] = []
             else:
                 train_seq = User[user][: valid_index]
-
                 valid_seq = User[user][valid_index: test_index]
                 test_seq = User[user][test_index:]
                 train_seq_length = len(train_seq)
