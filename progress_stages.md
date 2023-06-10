@@ -86,3 +86,11 @@ what fraction of the index of 1M Pins accounts for 90% of the top 10 retrieved r
 3. Implement a easy model can handle the window-based predictor (modification on the data reading step of the SASRec code)
 ```
 
+## 609 (Fri.)
+
+```
+1. Realise the difference of training objective between this change data feeding strategy with all action prediction
+2. Currentlys work as window-predictor split the training target by percentage, but still evaluate on the next item prediction. Evaluation metrics: P90 coverage@k (recommending diversity), (R@k)recommender quality. (Following PinnerFormer)
+3. Plan to change the evaluation on predicting all items at percentage
+```
+
