@@ -7,8 +7,8 @@ from model import SASRec
 from utils import *
 import time
 
-start_time = time.time()
-print(start_time)
+# start_time = time.time()
+# print(start_time)
 
 
 def str2bool(s):
