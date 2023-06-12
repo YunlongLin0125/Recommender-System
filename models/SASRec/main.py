@@ -7,8 +7,7 @@ from model import SASRec
 from utils import *
 import time
 
-# start_time = time.time()
-# print(start_time)
+start_time = time.time()
 
 
 def str2bool(s):
@@ -91,10 +90,14 @@ if __name__ == '__main__':
             pdb.set_trace()
 
     if args.inference_only:
-        model.eval()
-        t_test = evaluate(model, dataset, args)
-        print('test (NDCG@10: %.4f, HR@10: %.4f)' % (t_test[0], t_test[1]))
-
+        if not args.window_eval:
+            model.eval()
+            t_test = evaluate(model, dataset, args)
+            print('test (NDCG@10: %.4f, HR@10: %.4f)' % (t_test[0], t_test[1]))
+        else:
+            t_valid = evaluate_window_valid(model, dataset, dataset_window, args)
+            t_test = evaluate_window_test(model, dataset, dataset_window, args)
+            print('test (R@10: %.4f, P90coverage@10: %.4f)'% (t_test[0], t_test[1]))
     # ce_criterion = torch.nn.CrossEntropyLoss()
     # https://github.com/NVIDIA/pix2pixHD/issues/9 how could an old bug appear again...
     bce_criterion = torch.nn.BCEWithLogitsLoss()  # torch.nn.BCELoss()
