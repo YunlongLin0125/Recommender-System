@@ -24,7 +24,7 @@ BERT4Rec: [code](https://github.com/FeiSun/BERT4Rec), [paper](https://arxiv.org/
 
 ## Evaluation metrics:
 
-Same as [PinnerFormer](#https://arxiv.org/abs/2205.04507)
+Same as [PinnerFormer](https://arxiv.org/abs/2205.04507)
 
 * R@k: for Recommendation quality
 * P90 coverage@k: P90 coverage means the smallest item sets that appear in the top k lists of at least 90% of the users.
@@ -103,4 +103,3 @@ python main.py --dataset=retailrocket --train_dir="store_filepath" --maxlen=50 -
 [//]: # (python main.py --dataset=retailrocket --train_dir=default --maxlen=50 --dropout_rate=0.5 --device=cuda)
 
 [//]: # (```)
-[#https://arxiv.org/abs/2205.04507]: 
