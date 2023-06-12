@@ -71,7 +71,7 @@ the positive engagements includes in 1M pins N or not?
 => 
 positive engaged Pins P + negative random sampling = 1M 
 OR
-randoms corpus = 1M. (currently implemented)
+randoms corpus = 1M. (currently implemented) we don't consider whether the groundtruth items included or not.
 Result in different P90 Coverage@10.
 
 what fraction of the index of 1M Pins accounts for 90% of the top 10 retrieved results over a set of users ("P90 Coverage@10").
@@ -99,7 +99,8 @@ what fraction of the index of 1M Pins accounts for 90% of the top 10 retrieved r
 ```
 1. Merge the code to the main branch
 2. Update the Readme File
-2. Slides prepare
-3. Code refactor
+3. Slides prepare
+4. Code refactor
+5. PopRec model
 ```
 

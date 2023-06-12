@@ -58,7 +58,7 @@ if __name__ == '__main__':
         cc += len(sample_train[u])
     print('average sequence length: %.2f' % (cc / len(sample_train)))
     print('number of training data: %.2f' % len(sample_train))
-    print('number of items: %.2f' % usernum)
+    print('number of items: %.2f' % itemnum)
     f = open(os.path.join(args.dataset + '_' + args.train_dir, 'log.txt'), 'w')
 
     sampler = WarpSampler(sample_train, usernum, itemnum, batch_size=args.batch_size, maxlen=args.maxlen, n_workers=3)
