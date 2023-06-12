@@ -94,3 +94,12 @@ what fraction of the index of 1M Pins accounts for 90% of the top 10 retrieved r
 3. Plan to change the evaluation on predicting all items at percentage
 ```
 
+## 612 (Mon.)
+
+```
+1. Merge the code to the main branch
+2. Update the Readme File
+2. Slides prepare
+3. Code refactor
+```
+
