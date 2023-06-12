@@ -34,9 +34,9 @@ Same as [PinnerFormer](#https://arxiv.org/abs/2205.04507)
 ## SASRec
 ### movieLens-1M (SASRec):
 
-![image-20230612134712835](C:\Users\Yunlong\AppData\Roaming\Typora\typora-user-images\image-20230612134712835.png)
+<img src="materials\SASRec_train.png" alt="Image" style="width:70%; height:auto;">
 
-![image-20230612134813391](C:\Users\Yunlong\AppData\Roaming\Typora\typora-user-images\image-20230612134813391.png)
+<img src="materials\SASRec_eval.png" alt="Image" style="width:70%; height:auto;">
 
 ```
 cd models/SASRec
@@ -45,7 +45,9 @@ python main.py --dataset=processed/ml-1m --train_dir=test --maxlen=200 --dropout
 
 ### Ml-1M (SASRec But evaluate on our evaluation metrics)
 
-![image-20230612134801457](C:\Users\Yunlong\AppData\Roaming\Typora\typora-user-images\image-20230612134801457.png)
+<img src="materials\Window_eval.png" alt="Image" style="width:70%; height:auto;">
+
+
 
 ```
 cd models/SASRec
@@ -54,7 +56,13 @@ python main.py --dataset=processed/ml-1m --train_dir=test --maxlen=200 --dropout
 
 ### Ml-1M (SASRec change the input feeding strategy and evaluate on our evaluation metrics)
 
-![image-20230612134731595](C:\Users\Yunlong\AppData\Roaming\Typora\typora-user-images\image-20230612134731595.png)
+
+
+<img src="materials\window_split.png" alt="Image" style="width:70%; height:auto;">
+
+
+
+<img src="materials\SASRec_changeinput.png" alt="Image" style="width:50%; height:auto;">
 
 ```
 cd models/SASRec
