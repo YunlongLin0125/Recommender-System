@@ -108,6 +108,10 @@ what fraction of the index of 1M Pins accounts for 90% of the top 10 retrieved r
 
 ```
 1. Try implement all action prediction method.
-2. find something wrong when using SASRec-window. (user embedding)
+
 ```
 
+## 614 (Thur.)
+```
+1. Implement Evaluation metrics on HT and nDCG, independently evaluate each val/test target.
+```
