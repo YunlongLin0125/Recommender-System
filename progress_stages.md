@@ -115,3 +115,10 @@ what fraction of the index of 1M Pins accounts for 90% of the top 10 retrieved r
 ```
 1. Implement Evaluation metrics on HT and nDCG, independently evaluate each val/test target.
 ```
+
+## 615 (Fri.)
+```
+1. Change back to primary Recall@k Evaluation (SASRec > SASRec-window > all actions).
+2. the reason for action may be the signal flow is too low? (not sure). Adding the negative sampling may improve. 
+(not sure, teammates say not).
+```
