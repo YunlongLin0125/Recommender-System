@@ -49,9 +49,8 @@ f.close()
 if __name__ == '__main__':
     # global dataset
     dataset = data_partition(args.dataset)
-    dataset_window = data_partition_window_fixed(args.dataset, valid_percent=0.1, test_percent=0.1, train_k=7)
-    # dataset_window = data_partition_window_P(args.dataset, valid_percent=0.05, test_percent=0.05, train_percent=0.05)
-    # dataset_sas = data_partition_window_forSAS(args.dataset, valid_percent=0.2, test_percent=0.2)
+    # dataset_window = data_partition_window_fixed(args.dataset, valid_percent=0.1, test_percent=0.1, train_k=7)
+    dataset_window = data_partition_window_P(args.dataset, valid_percent=0.1, test_percent=0.1, train_percent=0.1)
     [user_train, user_valid, user_test, usernum, itemnum] = dataset
     sample_num = usernum
     sample_train = user_train
@@ -121,18 +120,19 @@ if __name__ == '__main__':
             u, seq, pos, neg = sampler.next_batch()  # tuples to ndarray
             u, seq, pos, neg = np.array(u), np.array(seq), np.array(pos), np.array(neg)
             pos_logits, neg_logits = model(u, seq, pos, neg)
+            # batch_size, sequence length
             pos_labels, neg_labels = torch.ones(pos_logits.shape, device=args.device), torch.zeros(neg_logits.shape,
                                                                                                    device=args.device)
             # print("\neye ball check raw_logits:"); print(pos_logits); print(neg_logits) # check pos_logits > 0, neg_logits < 0
             adam_optimizer.zero_grad()
-            indices = np.where(pos != 0)
+            # indices = np.where(pos != 0)
             # select from no padding
             # print(type(indices))
-            # indices = -1
-            # loss = bce_criterion(pos_logits[:, indices], pos_labels[:, indices])
-            # loss += bce_criterion(neg_logits[:, indices], neg_labels[:, indices])
-            loss = bce_criterion(pos_logits[indices], pos_labels[indices])
-            loss += bce_criterion(neg_logits[indices], neg_labels[indices])
+            indices = -1
+            loss = bce_criterion(pos_logits[:, indices], pos_labels[:, indices])
+            loss += bce_criterion(neg_logits[:, indices], neg_labels[:, indices])
+            # loss = bce_criterion(pos_logits[indices], pos_labels[indices])
+            # loss += bce_criterion(neg_logits[indices], neg_labels[indices])
             for param in model.item_emb.parameters(): loss += args.l2_emb * torch.norm(param)
             loss.backward()
             adam_optimizer.step()
@@ -152,7 +152,9 @@ if __name__ == '__main__':
             else:
                 t_valid = evaluate_window_valid(model, dataset_window, args)
                 t_test = evaluate_window_test(model, dataset_window, args)
-                print('epoch:%d, time: %f(s), valid (NDCG@10: %.4f, HR@10: %.4f), test (NDCG@10: %.4f, HR@10: %.4f)'
+                # print('epoch:%d, time: %f(s), valid (NDCG@10: %.4f, HR@10: %.4f), test (NDCG@10: %.4f, HR@10: %.4f)'
+                #       % (epoch, T, t_valid[0], t_valid[1], t_test[0], t_test[1]))
+                print('epoch:%d, time: %f(s), valid (R@10: %.4f, nn: %.4f), test (R@10: %.4f, nn: %.4f)'
                       % (epoch, T, t_valid[0], t_valid[1], t_test[0], t_test[1]))
                 # print('epoch:%d, time: %f(s), valid (R@10: %.4f, P90coverage@10: %.4f), test (R@10: %.4f, '
                 #       'P90coverage@10: %.4f)'

@@ -9,7 +9,7 @@ l2_emb,0.0
 lr,0.001
 maxlen,200
 num_blocks,2
-num_epochs,101
+num_epochs,200
 num_heads,1
 sas_window_eval,False
 state_dict_path,None

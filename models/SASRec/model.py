@@ -1,5 +1,6 @@
 import numpy as np
 import torch
+import utils
 
 
 class PointWiseFeedForward(torch.nn.Module):
@@ -105,18 +106,24 @@ class SASRec(torch.nn.Module):
         log_feats = self.log2feats(log_seqs) # user_ids hasn't been used yet
         # (batch_size, sequence_length, hidden_units)
         final_feat = log_feats[:, -1, :]
+        # (batch_size, 1, hidden_units)
+        # pos_emb = self.item_emb(torch.LongTensor(pos_seqs[-1]).to(self.dev))
+        # neg_emb = self.item_emb(torch.LongTensor(neg_seqs[-1]).to(self.dev))
         pos_embs = self.item_emb(torch.LongTensor(pos_seqs).to(self.dev))
         # (batch_size, sequence_length, hidden_units)
+        # pos_id = pos_seqs[-1].item()
+        # neg = [pos_id]
+        # for _ in range(sample_nums):
+        #     t = np.random.randint(1, itemnum + 1)
+        #     while t in neg: t = np.random.randint(1, itemnum + 1)
+        #     neg.append(t)
+        # (neg_num)
         neg_embs = self.item_emb(torch.LongTensor(neg_seqs).to(self.dev))
-
+        # neg_num, hidden_units
         pos_logits = (log_feats * pos_embs).sum(dim=-1)
-        # (batch_size, sequence_length, 1)
+        # score for positive engagement = (batch_size, sequence_length, 1)
         neg_logits = (log_feats * neg_embs).sum(dim=-1)
-        # pos_logits = (log_feats[:, -1, :] * pos_embs[:, -1, :]).sum(dim=-1)
-        # neg_logits = (log_feats[:, -1, :] * neg_embs[:, -1, :]).sum(dim=-1)
-        # pos_pred = self.pos_sigmoid(pos_logits)
-        # neg_pred = self.neg_sigmoid(neg_logits)
-
+        # score for negative engagement = (batch_size, sequence_length, 1)
         return pos_logits, neg_logits # pos_pred, neg_pred
 
     def predict(self, user_ids, log_seqs, item_indices): # for inference

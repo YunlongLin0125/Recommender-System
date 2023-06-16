@@ -139,7 +139,6 @@ def data_partition_window_P(fname, valid_percent, test_percent, train_percent):
     if valid_percent + test_percent > 0.6:
         print('the percent you select for val/test are too high')
         return None
-    target_window = 7
     valid_start = 1 - valid_percent - test_percent
     test_start = 1 - test_percent
     train_start = 1 - train_percent
@@ -439,120 +438,118 @@ def evaluate_valid(model, dataset, args):
     return NDCG / valid_user, HT / valid_user
 
 
-def evaluate_window_valid(model, dataset_window, args):
-    [_, train, valid, test, usernum, itemnum, samplenum] = copy.deepcopy(dataset_window)
-    NDCG = 0.0
-    valid_user = 0.0
-    HT = 0.0
-    k = 7
-    sample_nums = 100
-    if usernum > 10000:
-        users = random.sample(range(1, usernum + 1), 10000)
-    else:
-        users = range(1, usernum + 1)
-    for u in users:
-        if len(train[u]) < 1 or len(valid[u]) < k: continue
-        # validation_num = len(valid[u])
-        validation_num = 7
-        nDCG_u = 0
-        ht_u = 0
-        seq = np.zeros([args.maxlen], dtype=np.int32)
-        idx = args.maxlen - 1
-        for i in reversed(train[u]):
-            seq[idx] = i
-            # fill the sequence from end to beginning
-            idx -= 1
-            if idx == -1: break
-            # select the max len or all of the training data in the sequence
-            # limit the length, seq contains the actual training sequence
-        # interacted items
-        rated = set(train[u])
-        rated.add(0)
-        # process items
-        for valid_id in range(validation_num):
-            item_idx = [valid[u][valid_id]]
-            for _ in range(sample_nums):
-                t = np.random.randint(1, itemnum + 1)
-                while t in rated: t = np.random.randint(1, itemnum + 1)
-                item_idx.append(t)
-            predictions = -model.predict(*[np.array(l) for l in [[u], [seq], item_idx]])
-            predictions = predictions[0]
-            rank = predictions.argsort().argsort()[0].item()
-            if rank < 10:
-                nDCG_u += 1 / np.log2(rank + 2)
-                ht_u += 1
-        NDCG += nDCG_u / validation_num
-        HT += ht_u / validation_num
-        valid_user += 1
-        if valid_user % 100 == 0:
-            print('.', end="")
-            sys.stdout.flush()
-    print(valid_user)
-    return NDCG / valid_user, HT / valid_user
-
-
-def evaluate_window_test(model, dataset_window, args):
-    [_, train, valid, test, usernum, itemnum, samplenum] = copy.deepcopy(dataset_window)
-    NDCG = 0.0
-    valid_user = 0.0
-    HT = 0.0
-    k = 7
-    sample_nums = 100
-    if usernum > 10000:
-        users = random.sample(range(1, usernum + 1), 10000)
-    else:
-        users = range(1, usernum + 1)
-    for u in users:
-        if len(train[u]) < 1 or len(test[u]) < k: continue
-        test_num = len(test[u])
-        test_num = 7
-        nDCG_u = 0
-        ht_u = 0
-        seq = np.zeros([args.maxlen], dtype=np.int32)
-        idx = args.maxlen - 1
-        for i in reversed(train[u] + valid[u]):
-            seq[idx] = i
-            # fill the sequence from end to beginning
-            idx -= 1
-            if idx == -1: break
-            # select the max len or all of the training data in the sequence
-            # limit the length, seq contains the actual training sequence
-        # interacted items
-        rated = set(train[u] + valid[u])
-        rated.add(0)
-        # process items
-        for test_id in range(test_num):
-            item_idx = [test[u][test_id]]
-            for _ in range(sample_nums):
-                t = np.random.randint(1, itemnum + 1)
-                while t in rated: t = np.random.randint(1, itemnum + 1)
-                item_idx.append(t)
-            predictions = -model.predict(*[np.array(l) for l in [[u], [seq], item_idx]])
-            predictions = predictions[0]
-            rank = predictions.argsort().argsort()[0].item()
-            if rank < 10:
-                nDCG_u += 1 / np.log2(rank + 2)
-                ht_u += 1
-        NDCG += nDCG_u / test_num
-        HT += ht_u / test_num
-        valid_user += 1
-        if valid_user % 100 == 0:
-            print('.', end="")
-            sys.stdout.flush()
-    print(valid_user)
-    return NDCG / valid_user, HT / valid_user
-
-# (Hit Ratio, nDCG)
+# fixed window size
 # def evaluate_window_valid(model, dataset_window, args):
 #     [_, train, valid, test, usernum, itemnum, samplenum] = copy.deepcopy(dataset_window)
 #     NDCG = 0.0
 #     valid_user = 0.0
 #     HT = 0.0
-#     # P90 coverage means the smallest item sets that appear in the top 10 lists of at least 90% of the users.
+#     k = 7
 #     sample_nums = 100
-#     # random_items = random.sample(range(1, itemnum + 1), sample_nums)
-#     # sample_idx = random_items
-#     # sample_idx_tensor = torch.tensor(sample_idx).to(args.device)
+#     if usernum > 10000:
+#         users = random.sample(range(1, usernum + 1), 10000)
+#     else:
+#         users = range(1, usernum + 1)
+#     for u in users:
+#         if len(train[u]) < 1 or len(valid[u]) < k: continue
+#         # validation_num = len(valid[u])
+#         validation_num = 7
+#         nDCG_u = 0
+#         ht_u = 0
+#         seq = np.zeros([args.maxlen], dtype=np.int32)
+#         idx = args.maxlen - 1
+#         for i in reversed(train[u]):
+#             seq[idx] = i
+#             # fill the sequence from end to beginning
+#             idx -= 1
+#             if idx == -1: break
+#             # select the max len or all of the training data in the sequence
+#             # limit the length, seq contains the actual training sequence
+#         # interacted items
+#         rated = set(train[u])
+#         rated.add(0)
+#         # process items
+#         for valid_id in range(validation_num):
+#             item_idx = [valid[u][valid_id]]
+#             for _ in range(sample_nums):
+#                 t = np.random.randint(1, itemnum + 1)
+#                 while t in rated: t = np.random.randint(1, itemnum + 1)
+#                 item_idx.append(t)
+#             predictions = -model.predict(*[np.array(l) for l in [[u], [seq], item_idx]])
+#             predictions = predictions[0]
+#             rank = predictions.argsort().argsort()[0].item()
+#             if rank < 10:
+#                 nDCG_u += 1 / np.log2(rank + 2)
+#                 ht_u += 1
+#         NDCG += nDCG_u / validation_num
+#         HT += ht_u / validation_num
+#         valid_user += 1
+#         if valid_user % 100 == 0:
+#             print('.', end="")
+#             sys.stdout.flush()
+#     print(valid_user)
+#     return NDCG / valid_user, HT / valid_user
+#
+#
+# def evaluate_window_test(model, dataset_window, args):
+#     [_, train, valid, test, usernum, itemnum, samplenum] = copy.deepcopy(dataset_window)
+#     NDCG = 0.0
+#     valid_user = 0.0
+#     HT = 0.0
+#     k = 7
+#     sample_nums = 100
+#     if usernum > 10000:
+#         users = random.sample(range(1, usernum + 1), 10000)
+#     else:
+#         users = range(1, usernum + 1)
+#     for u in users:
+#         if len(train[u]) < 1 or len(test[u]) < k: continue
+#         test_num = len(test[u])
+#         test_num = 7
+#         nDCG_u = 0
+#         ht_u = 0
+#         seq = np.zeros([args.maxlen], dtype=np.int32)
+#         idx = args.maxlen - 1
+#         for i in reversed(train[u] + valid[u]):
+#             seq[idx] = i
+#             # fill the sequence from end to beginning
+#             idx -= 1
+#             if idx == -1: break
+#             # select the max len or all of the training data in the sequence
+#             # limit the length, seq contains the actual training sequence
+#         # interacted items
+#         rated = set(train[u] + valid[u])
+#         rated.add(0)
+#         # process items
+#         for test_id in range(test_num):
+#             item_idx = [test[u][test_id]]
+#             for _ in range(sample_nums):
+#                 t = np.random.randint(1, itemnum + 1)
+#                 while t in rated: t = np.random.randint(1, itemnum + 1)
+#                 item_idx.append(t)
+#             predictions = -model.predict(*[np.array(l) for l in [[u], [seq], item_idx]])
+#             predictions = predictions[0]
+#             rank = predictions.argsort().argsort()[0].item()
+#             if rank < 10:
+#                 nDCG_u += 1 / np.log2(rank + 2)
+#                 ht_u += 1
+#         NDCG += nDCG_u / test_num
+#         HT += ht_u / test_num
+#         valid_user += 1
+#         if valid_user % 100 == 0:
+#             print('.', end="")
+#             sys.stdout.flush()
+#     # print(valid_user)
+#     return NDCG / valid_user, HT / valid_user
+
+# (Hit Ratio, nDCG) on percentage
+# def evaluate_window_valid(model, dataset_window, args):
+#     [_, train, valid, test, usernum, itemnum, samplenum] = copy.deepcopy(dataset_window)
+#     NDCG = 0.0
+#     valid_user = 0.0
+#     HT = 0.0
+#     sample_nums = 100
+#
 #     if usernum > 10000:
 #         users = random.sample(range(1, usernum + 1), 10000)
 #     else:
@@ -629,7 +626,7 @@ def evaluate_window_test(model, dataset_window, args):
 #             # select the max len or all of the training data in the sequence
 #             # limit the length, seq contains the actual training sequence
 #         # interacted items
-#         rated = set(train[u])
+#         rated = set(train[u] + valid[u])
 #         rated.add(0)
 #         # process items
 #         item_idx = test[u]
@@ -663,7 +660,6 @@ def evaluate_window_test(model, dataset_window, args):
 #     return NDCG / valid_user, HT / valid_user
 
 ## (Recall@k, P90 Coverage)
-
 # def evaluate_window_valid(model, dataset, dataset_window, args):
 #     [train, valid, test, usernum, itemnum] = copy.deepcopy(dataset)
 #     [_, train, valid, test, _, itemnum, sample_num] = copy.deepcopy(dataset_window)
@@ -756,7 +752,7 @@ def evaluate_window_test(model, dataset_window, args):
 #             # select the max len or all of the training data in the sequence
 #             # limit the length, seq contains the actual training sequence
 #         # interacted items
-#         rated = set(train[u])
+#         rated = set(train[u]+valid[u])
 #         rated.add(0)
 #         # ground truth item
 #         ground_truth_idx = test[u]
@@ -796,3 +792,104 @@ def evaluate_window_test(model, dataset_window, args):
 #         if total_rec >= 0.9 * 10 * usernum:
 #             break
 #     return Recall / valid_user, item_count / sample_nums
+
+# Recall@k, XX
+def evaluate_window_valid(model, dataset_window, args):
+    [_, train, valid, test, usernum, itemnum, sample_num] = copy.deepcopy(dataset_window)
+    Recall = 0.0
+    Recall_U = 0.0
+    valid_user = 0.0
+    sample_nums = 500
+    users = range(1, usernum + 1)
+    for u in users:
+        if len(train[u]) < 1 or len(valid[u]) < 1: continue
+        seq = np.zeros([args.maxlen], dtype=np.int32)
+        idx = args.maxlen - 1
+        for i in reversed(train[u]):
+            seq[idx] = i
+            # fill the sequence from end to beginning
+            idx -= 1
+            if idx == -1: break
+            # select the max len or all of the training data in the sequence
+            # limit the length, seq contains the actual training sequence
+        # interacted items
+        rated = set(train[u])
+        rated.add(0)
+        # ground truth item
+        neg = []
+        for _ in range(sample_nums):
+            t = np.random.randint(1, itemnum + 1)
+            while t in rated: t = np.random.randint(1, itemnum + 1)
+            neg.append(t)
+
+        valid_num = len(valid[u])
+        item_idx = valid[u] + neg
+        predictions = -model.predict(*[np.array(l) for l in [[u], [seq], item_idx]])[0]
+        # target distance
+        target_ds = predictions[:valid_num]
+        # sampled results
+        sample_d = predictions[valid_num:]
+        for target_d in target_ds:
+            bool_tensor = target_d >= sample_d
+            count = torch.sum(bool_tensor).item()
+            if count < 10:
+                Recall_U += 1
+        Recall_U = Recall_U / valid_num
+        Recall += Recall_U
+        Recall_U = 0
+        # take the coverage@10 for all users
+        valid_user += 1
+        if valid_user % 100 == 0:
+            print('.', end="")
+            sys.stdout.flush()
+    return Recall / valid_user, 0.66
+
+
+def evaluate_window_test(model, dataset_window, args):
+    [_, train, valid, test, usernum, itemnum, sample_num] = copy.deepcopy(dataset_window)
+    Recall = 0.0
+    Recall_U = 0.0
+    valid_user = 0.0
+    sample_nums = 500
+    users = range(1, usernum + 1)
+    for u in users:
+        if len(train[u]) < 1 or len(test[u]) < 1: continue
+        seq = np.zeros([args.maxlen], dtype=np.int32)
+        idx = args.maxlen - 1
+        for i in reversed(train[u] + valid[u]):
+            seq[idx] = i
+            # fill the sequence from end to beginning
+            idx -= 1
+            if idx == -1: break
+            # select the max len or all of the training data in the sequence
+            # limit the length, seq contains the actual training sequence
+        # interacted items
+        rated = set(train[u] + valid[u])
+        rated.add(0)
+        # ground truth item
+        neg = []
+        for _ in range(sample_nums):
+            t = np.random.randint(1, itemnum + 1)
+            while t in rated: t = np.random.randint(1, itemnum + 1)
+            neg.append(t)
+        test_num = len(test[u])
+        item_idx = test[u] + neg
+        predictions = -model.predict(*[np.array(l) for l in [[u], [seq], item_idx]])[0]
+        # target distance
+        target_ds = predictions[:test_num]
+        # sampled results
+        sample_d = predictions[test_num:]
+        for target_d in target_ds:
+            bool_tensor = target_d >= sample_d
+            count = torch.sum(bool_tensor).item()
+            if count < 10:
+                Recall_U += 1
+        Recall_U = Recall_U / test_num
+        Recall += Recall_U
+        Recall_U = 0
+        # take the coverage@10 for all users
+        valid_user += 1
+        if valid_user % 100 == 0:
+            print('.', end="")
+            sys.stdout.flush()
+    return Recall / valid_user, 0.66
