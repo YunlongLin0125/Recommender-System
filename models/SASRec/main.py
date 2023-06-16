@@ -31,7 +31,9 @@ parser.add_argument('--l2_emb', default=0.0, type=float)
 parser.add_argument('--device', default='cpu', type=str)
 parser.add_argument('--inference_only', default=False, type=str2bool)
 parser.add_argument('--state_dict_path', default=None, type=str)
+parser.add_argument('--window_size', default=7, type=int)
 parser.add_argument('--window_predictor', default=False, type=str2bool)
+parser.add_argument('--sas_window_eval', default=False, type=str2bool)
 parser.add_argument('--window_eval', default=False, type=str2bool)
 parser.add_argument('--eval_epoch', default=20, type=int)
 
@@ -47,11 +49,19 @@ f.close()
 if __name__ == '__main__':
     # global dataset
     dataset = data_partition(args.dataset)
-    dataset_window = data_partition_window_P(args.dataset, valid_percent=0.2, test_percent=0.2, train_percent=0.2)
+    dataset_window = data_partition_window_fixed(args.dataset, valid_percent=0.1, test_percent=0.1, train_k=7)
+    # dataset_window = data_partition_window_P(args.dataset, valid_percent=0.05, test_percent=0.05, train_percent=0.05)
+    # dataset_sas = data_partition_window_forSAS(args.dataset, valid_percent=0.2, test_percent=0.2)
     [user_train, user_valid, user_test, usernum, itemnum] = dataset
+    sample_num = usernum
     sample_train = user_train
     if args.window_predictor:
-        [sample_train, user_train_seq, _, _, usernum, _] = dataset_window
+        [sample_train, user_train, user_valid, user_test, usernum, itemnum, sample_num] = dataset_window
+    if args.sas_window_eval:
+        [_, user_train, user_valid, user_test, usernum, itemnum, _] = dataset_window
+        sample_train = user_train
+        sample_num = usernum
+
     num_batch = len(sample_train) // args.batch_size  # tail? + ((len(user_train) % args.batch_size) != 0)
     cc = 0.0
     for u in sample_train:
@@ -59,9 +69,9 @@ if __name__ == '__main__':
     print('average sequence length: %.2f' % (cc / len(sample_train)))
     print('number of training data: %.2f' % len(sample_train))
     print('number of items: %.2f' % itemnum)
-    f = open(os.path.join(args.dataset + '_' + args.train_dir, 'log.txt'), 'w')
 
-    sampler = WarpSampler(sample_train, usernum, itemnum, batch_size=args.batch_size, maxlen=args.maxlen, n_workers=3)
+    f = open(os.path.join(args.dataset + '_' + args.train_dir, 'log.txt'), 'w')
+    sampler = WarpSampler(sample_train, sample_num, itemnum, batch_size=args.batch_size, maxlen=args.maxlen, n_workers=3)
     model = SASRec(usernum, itemnum, args).to(args.device)  # no ReLU activation in original SASRec implementation?
 
     for name, param in model.named_parameters():
@@ -74,7 +84,6 @@ if __name__ == '__main__':
     # model.apply(torch.nn.init.xavier_uniform_)
 
     model.train()  # enable model training
-
     epoch_start_idx = 1
     if args.state_dict_path is not None:
         try:
@@ -95,9 +104,9 @@ if __name__ == '__main__':
             t_test = evaluate(model, dataset, args)
             print('test (NDCG@10: %.4f, HR@10: %.4f)' % (t_test[0], t_test[1]))
         else:
-            t_valid = evaluate_window_valid(model, dataset, dataset_window, args)
-            t_test = evaluate_window_test(model, dataset, dataset_window, args)
-            print('test (R@10: %.4f, P90coverage@10: %.4f)'% (t_test[0], t_test[1]))
+            t_valid = evaluate_window_valid(model, dataset_window, args)
+            t_test = evaluate_window_test(model, dataset_window, args)
+            print('test (R@10: %.4f, P90coverage@10: %.4f)' % (t_test[0], t_test[1]))
     # ce_criterion = torch.nn.CrossEntropyLoss()
     # https://github.com/NVIDIA/pix2pixHD/issues/9 how could an old bug appear again...
     bce_criterion = torch.nn.BCEWithLogitsLoss()  # torch.nn.BCELoss()
@@ -117,6 +126,11 @@ if __name__ == '__main__':
             # print("\neye ball check raw_logits:"); print(pos_logits); print(neg_logits) # check pos_logits > 0, neg_logits < 0
             adam_optimizer.zero_grad()
             indices = np.where(pos != 0)
+            # select from no padding
+            # print(type(indices))
+            # indices = -1
+            # loss = bce_criterion(pos_logits[:, indices], pos_labels[:, indices])
+            # loss += bce_criterion(neg_logits[:, indices], neg_labels[:, indices])
             loss = bce_criterion(pos_logits[indices], pos_labels[indices])
             loss += bce_criterion(neg_logits[indices], neg_labels[indices])
             for param in model.item_emb.parameters(): loss += args.l2_emb * torch.norm(param)
@@ -136,11 +150,13 @@ if __name__ == '__main__':
                 print('epoch:%d, time: %f(s), valid (NDCG@10: %.4f, HR@10: %.4f), test (NDCG@10: %.4f, HR@10: %.4f)'
                       % (epoch, T, t_valid[0], t_valid[1], t_test[0], t_test[1]))
             else:
-                t_valid = evaluate_window_valid(model, dataset, dataset_window, args)
-                t_test = evaluate_window_test(model, dataset, dataset_window, args)
-                print('epoch:%d, time: %f(s), valid (R@10: %.4f, P90coverage@10: %.4f), test (R@10: %.4f, '
-                      'P90coverage@10: %.4f)'
+                t_valid = evaluate_window_valid(model, dataset_window, args)
+                t_test = evaluate_window_test(model, dataset_window, args)
+                print('epoch:%d, time: %f(s), valid (NDCG@10: %.4f, HR@10: %.4f), test (NDCG@10: %.4f, HR@10: %.4f)'
                       % (epoch, T, t_valid[0], t_valid[1], t_test[0], t_test[1]))
+                # print('epoch:%d, time: %f(s), valid (R@10: %.4f, P90coverage@10: %.4f), test (R@10: %.4f, '
+                #       'P90coverage@10: %.4f)'
+                #       % (epoch, T, t_valid[0], t_valid[1], t_test[0], t_test[1]))
             f.write(str(t_valid) + ' ' + str(t_test) + '\n')
             f.flush()
             t0 = time.time()

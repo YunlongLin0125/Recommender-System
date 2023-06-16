@@ -63,18 +63,25 @@ class SASRec(torch.nn.Module):
             # self.neg_sigmoid = torch.nn.Sigmoid()
 
     def log2feats(self, log_seqs):
+        # get the item embedding
+        # seqs.shape = [batch_size, 1]
         seqs = self.item_emb(torch.LongTensor(log_seqs).to(self.dev))
+        # seqs.shape = [batch_size, embeddings]
+        # scale the values
         seqs *= self.item_emb.embedding_dim ** 0.5
         positions = np.tile(np.array(range(log_seqs.shape[1])), [log_seqs.shape[0], 1])
-        seqs += self.pos_emb(torch.LongTensor(positions).to(self.dev))
-        seqs = self.emb_dropout(seqs)
 
+        seqs += self.pos_emb(torch.LongTensor(positions).to(self.dev))
+        # position embeddings
+        seqs = self.emb_dropout(seqs)
+        # dropout
         timeline_mask = torch.BoolTensor(log_seqs == 0).to(self.dev)
         seqs *= ~timeline_mask.unsqueeze(-1) # broadcast in last dim
-
+        # mask the elements, ignore the padding tokens (items with id 0) in the sequences.
         tl = seqs.shape[1] # time dim len for enforce causality
         attention_mask = ~torch.tril(torch.ones((tl, tl), dtype=torch.bool, device=self.dev))
-
+        # casual masking
+        # input the sequence to attention layers
         for i in range(len(self.attention_layers)):
             seqs = torch.transpose(seqs, 0, 1)
             Q = self.attention_layernorms[i](seqs)
@@ -82,6 +89,7 @@ class SASRec(torch.nn.Module):
                                             attn_mask=attention_mask)
                                             # key_padding_mask=timeline_mask
                                             # need_weights=False) this arg do not work?
+            # multi-head attention outputs
             seqs = Q + mha_outputs
             seqs = torch.transpose(seqs, 0, 1)
 
@@ -90,18 +98,22 @@ class SASRec(torch.nn.Module):
             seqs *=  ~timeline_mask.unsqueeze(-1)
 
         log_feats = self.last_layernorm(seqs) # (U, T, C) -> (U, -1, C)
-
+        # (batch_size, sequence_length, hidden_units)
         return log_feats
 
     def forward(self, user_ids, log_seqs, pos_seqs, neg_seqs): # for training        
         log_feats = self.log2feats(log_seqs) # user_ids hasn't been used yet
-
+        # (batch_size, sequence_length, hidden_units)
+        final_feat = log_feats[:, -1, :]
         pos_embs = self.item_emb(torch.LongTensor(pos_seqs).to(self.dev))
+        # (batch_size, sequence_length, hidden_units)
         neg_embs = self.item_emb(torch.LongTensor(neg_seqs).to(self.dev))
 
         pos_logits = (log_feats * pos_embs).sum(dim=-1)
+        # (batch_size, sequence_length, 1)
         neg_logits = (log_feats * neg_embs).sum(dim=-1)
-
+        # pos_logits = (log_feats[:, -1, :] * pos_embs[:, -1, :]).sum(dim=-1)
+        # neg_logits = (log_feats[:, -1, :] * neg_embs[:, -1, :]).sum(dim=-1)
         # pos_pred = self.pos_sigmoid(pos_logits)
         # neg_pred = self.neg_sigmoid(neg_logits)
 
