@@ -8,25 +8,30 @@ from multiprocessing import Process, Queue
 
 
 # sampler for batch generation
-def random_neq(l, r, s):
-    t = np.random.randint(l, r)
-    while t in s:
+def random_neq(l, r, s, num):
+    ts = []
+    for i in range(num):
         t = np.random.randint(l, r)
-    return t
+        while t in s or t in ts:
+            t = np.random.randint(l, r)
+        ts.append(t)
+    # if len(ts) == 1:
+    #     return ts[0]
+    return ts
 
 
 def sample_function(user_train, usernum, itemnum, batch_size, maxlen, result_queue, SEED):
     def sample():
         # randomly sampled a valid user
         user = np.random.randint(1, usernum + 1)
-        while len(user_train[user]) <= 1: user = np.random.randint(1, usernum + 1)
+        while len(user_train[user]) <= 1:
+            user = np.random.randint(1, usernum + 1)
 
         seq = np.zeros([maxlen], dtype=np.int32)
         pos = np.zeros([maxlen], dtype=np.int32)
         neg = np.zeros([maxlen], dtype=np.int32)
         nxt = user_train[user][-1]
         idx = maxlen - 1
-
         ts = set(user_train[user])
         for i in reversed(user_train[user][:-1]):
             # fill the seq with all interacted except the last item as the target action
@@ -34,10 +39,96 @@ def sample_function(user_train, usernum, itemnum, batch_size, maxlen, result_que
             seq[idx] = i  # [x,x,x,x,x,x,#]
             pos[idx] = nxt  # [#,y,y,y,y,y,y]
             # negative sampling (random_neq) from 1 to itemnum + 1
-            if nxt != 0: neg[idx] = random_neq(1, itemnum + 1, ts)
+            if nxt != 0: neg[idx] = random_neq(1, itemnum + 1, ts, 1)[0]
             nxt = i
             idx -= 1
             if idx == -1: break
+
+        # user: uniformly sampled userid
+        # seq: the sequence of items the user has interacted with
+        # pos: positive samples,
+        # neg: the negative samples respectively
+        return user, seq, pos, neg
+
+    np.random.seed(SEED)
+    while True:
+        one_batch = []
+        for i in range(batch_size):
+            # batch
+            one_batch.append(sample())
+
+        result_queue.put(zip(*one_batch))
+
+
+## dense all action sampling
+def sample_function_2(user_train, train_target, usernum, itemnum, batch_size, maxlen, result_queue, SEED):
+    def sample():
+        # randomly sampled a valid user
+        user = np.random.randint(1, usernum + 1)
+        while len(user_train[user]) <= 1:
+            user = np.random.randint(1, usernum + 1)
+        seq = np.zeros([maxlen], dtype=np.int32)
+        idx = maxlen - 1
+        ts = set(user_train[user] + train_target[user])
+        ## Dense all action
+        num_neg_samples = 1
+        pos = np.zeros([maxlen], dtype=np.int32)
+        neg = np.zeros([maxlen, num_neg_samples], dtype=np.int32)
+        for i in reversed(user_train[user]):
+            # fill the seq with all interacted except the last item as the target action
+            seq[idx] = i  # [x,x,x,x,x,x,#]
+            random_target = random.sample(train_target[user], 1)[0]
+            pos[idx] = random_target
+            # dense all action connection
+            neg[idx] = random_neq(1, itemnum + 1, ts, num_neg_samples)
+            idx -= 1
+            if idx == -1:
+                break
+        # user: uniformly sampled userid
+        # seq: the sequence of items the user has interacted with
+        # pos: positive samples,
+        # neg: the negative samples respectively
+        return user, seq, pos, neg
+
+    np.random.seed(SEED)
+    while True:
+        one_batch = []
+        for i in range(batch_size):
+            # batch
+            one_batch.append(sample())
+
+        result_queue.put(zip(*one_batch))
+
+
+def sample_function_3(user_train, train_target, usernum, itemnum, batch_size, maxlen, result_queue, SEED):
+    def sample():
+        # randomly sampled a valid user
+        user = np.random.randint(1, usernum + 1)
+        while len(user_train[user]) <= 1:
+            user = np.random.randint(1, usernum + 1)
+        seq = np.zeros([maxlen], dtype=np.int32)
+        idx = maxlen - 1
+        ts = set(user_train[user] + train_target[user])
+        ## all action
+        num_neg_samples = 10
+        pos = np.zeros([maxlen, 32], dtype=np.int32)
+        neg = np.zeros([maxlen, num_neg_samples], dtype=np.int32)
+        for i in reversed(user_train[user]):
+            # fill the seq with all interacted except the last item as the target action
+            seq[idx] = i  # [x,x,x,x,x,x,#]
+            # random_target = random.sample(train_target[user], 1)[0]
+            if idx == maxlen - 1:
+                # while len(train_target[user]) < 32:
+                #     train_target[user].append(0)
+                pos[idx] = train_target[user]
+                # dense all action connection
+                neg[idx] = random_neq(1, itemnum + 1, ts, num_neg_samples)
+            idx -= 1
+            if idx == -1:
+                break
+        # print(seq.shape)
+        # print(pos.shape)
+        # print(neg.shape)
         # user: uniformly sampled userid
         # seq: the sequence of items the user has interacted with
         # pos: positive samples,
@@ -80,16 +171,73 @@ class WarpSampler(object):
             p.join()
 
 
-def data_partition_window_forSAS(fname, valid_percent, test_percent):
+class WarpSamplerDenseAll(object):
+    def __init__(self, user_input, user_target, usernum, itemnum, batch_size=64, maxlen=10, n_workers=1):
+        self.result_queue = Queue(maxsize=n_workers * 10)
+        self.processors = []
+        for i in range(n_workers):
+            self.processors.append(
+                Process(target=sample_function_2, args=(user_input,
+                                                        user_target,
+                                                        usernum,
+                                                        itemnum,
+                                                        batch_size,
+                                                        maxlen,
+                                                        self.result_queue,
+                                                        np.random.randint(2e9)
+                                                        )))
+            self.processors[-1].daemon = True
+            self.processors[-1].start()
+
+    def next_batch(self):
+        return self.result_queue.get()
+
+    def close(self):
+        for p in self.processors:
+            p.terminate()
+            p.join()
+
+
+class WarpSamplerAllAction(object):
+    def __init__(self, user_input, user_target, usernum, itemnum, batch_size=64, maxlen=10, n_workers=1):
+        self.result_queue = Queue(maxsize=n_workers * 10)
+        self.processors = []
+        for i in range(n_workers):
+            self.processors.append(
+                Process(target=sample_function_3, args=(user_input,
+                                                        user_target,
+                                                        usernum,
+                                                        itemnum,
+                                                        batch_size,
+                                                        maxlen,
+                                                        self.result_queue,
+                                                        np.random.randint(2e9)
+                                                        )))
+            self.processors[-1].daemon = True
+            self.processors[-1].start()
+
+    def next_batch(self):
+        return self.result_queue.get()
+
+    def close(self):
+        for p in self.processors:
+            p.terminate()
+            p.join()
+
+
+def data_partition_window_dense_all_P(fname, valid_percent, test_percent, train_percent):
     if valid_percent + test_percent > 0.6:
         print('the percent you select for val/test are too high')
         return None
     valid_start = 1 - valid_percent - test_percent
     test_start = 1 - test_percent
+    train_start = 1 - train_percent
     usernum = 0
     itemnum = 0
+    sample_actions = 32
     User = defaultdict(list)
-    user_train_seq = {}
+    user_input = {}
+    user_target = {}
     user_train = {}
     user_valid = {}
     user_test = {}
@@ -105,15 +253,14 @@ def data_partition_window_forSAS(fname, valid_percent, test_percent):
         User[u].append(i)
         # count user and items
     # read from each user
-    count = 0
     for user in User:
         nfeedback = len(User[user])
         if nfeedback < 3:
+            # continue
             user_train[user] = User[user]
             user_valid[user] = []
             user_test[user] = []
         else:
-
             # select the whole training seq
             # user_train[user] = User[user][:-2]
             seq_len = len(User[user])
@@ -127,12 +274,114 @@ def data_partition_window_forSAS(fname, valid_percent, test_percent):
                 train_seq = User[user][: valid_index]
                 valid_seq = User[user][valid_index: test_index]
                 test_seq = User[user][test_index:]
-                user_train[user] = train_seq
+                train_seq_length = len(train_seq)
+                split_index = int(train_seq_length * train_start)
+                # split the input and the target
+                input_seq = train_seq[:split_index]
+                user_input[user] = []
+                user_input[user] += input_seq
+                # store the input seq
+                target_seq = train_seq[split_index:]
+                # get the current target window
+                ## we randomly sample up to 32 actions per user in this 𝐾 day time window. (PinnerFormer)
+                # target_seq = random.choices(target_seq, k=sample_actions)
+                if len(target_seq) > 32:
+                    target_seq = random.sample(target_seq, k=sample_actions)
+                if len(target_seq) < 32:
+                    target_seq = random.choices(target_seq, k=sample_actions)
+                user_target[user] = []
+                user_target[user] += target_seq
+                # store the target sequence
+                # split the whole sequence to train/valid/test
+                user_train[user] = []
+                user_train[user] += train_seq
                 user_valid[user] = []
                 user_valid[user] += valid_seq
                 user_test[user] = []
                 user_test[user] += test_seq
-    return [user_train, user_valid, user_test, usernum, itemnum]
+    return [user_input, user_target, user_train, user_valid, user_test, usernum, itemnum]
+
+
+def data_partition_window_dense_all_P_changeSampling(fname, valid_percent, test_percent, train_percent):
+    if valid_percent + test_percent > 0.6:
+        print('the percent you select for val/test are too high')
+        return None
+    valid_start = 1 - valid_percent - test_percent
+    test_start = 1 - test_percent
+    train_start = 1 - train_percent
+    usernum = 0
+    itemnum = 0
+    sample_actions = 32
+    User = defaultdict(list)
+    user_input = {}
+    user_target = {}
+    sample_train = {}
+    user_train = {}
+    user_valid = {}
+    user_test = {}
+    # assume user/item index starting from 1
+    f = open('data/%s.txt' % fname, 'r')
+    # read from each line
+    for line in f:
+        u, i = line.rstrip().split(' ')
+        u = int(u)
+        i = int(i)
+        usernum = max(u, usernum)
+        itemnum = max(i, itemnum)
+        User[u].append(i)
+        # count user and items
+    # read from each user
+    samplenum = 0
+    for user in User:
+        nfeedback = len(User[user])
+        if nfeedback < 3:
+            # continue
+            user_train[user] = User[user]
+            user_valid[user] = []
+            user_test[user] = []
+        else:
+            # select the whole training seq
+            # user_train[user] = User[user][:-2]
+            seq_len = len(User[user])
+            valid_index = int(seq_len * valid_start)
+            test_index = int(seq_len * test_start)
+            if valid_index == test_index:
+                user_train[user] = User[user]
+                user_valid[user] = []
+                user_test[user] = []
+            else:
+                train_seq = User[user][: valid_index]
+                valid_seq = User[user][valid_index: test_index]
+                test_seq = User[user][test_index:]
+                train_seq_length = len(train_seq)
+                split_index = int(train_seq_length * train_start)
+                # split the input and the target
+                input_seq = train_seq[:split_index]
+                user_input[user] = []
+                user_input[user] += input_seq
+                # store the input seq
+                target_seq = train_seq[split_index:]
+                # get the current target window
+                ## we randomly sample up to 32 actions per user in this 𝐾 day time window. (PinnerFormer)
+                target_seq = random.choices(target_seq, k=sample_actions)
+                for i in range(1, len(input_seq) + 1):
+                    samplenum += 1
+                    cur_seq = input_seq[:i]
+                    cur_target = random.sample(target_seq, 1)
+                    cur_sample = cur_seq + cur_target
+                    sample_train[samplenum] = cur_sample
+
+                user_target[user] = []
+                user_target[user] += target_seq
+                # store the target sequence
+                # split the whole sequence to train/valid/test
+                user_train[user] = []
+                user_train[user] += train_seq
+                user_valid[user] = []
+                user_valid[user] += valid_seq
+                user_test[user] = []
+                user_test[user] += test_seq
+    return [sample_train, user_train, user_valid, user_test, usernum, itemnum, samplenum]
 
 
 def data_partition_window_P(fname, valid_percent, test_percent, train_percent):
@@ -145,6 +394,7 @@ def data_partition_window_P(fname, valid_percent, test_percent, train_percent):
     usernum = 0
     itemnum = 0
     samplenum = 0
+    sample_actions = 32
     User = defaultdict(list)
     user_train_seq = {}
     user_train = {}
@@ -187,6 +437,12 @@ def data_partition_window_P(fname, valid_percent, test_percent, train_percent):
                 split_index = int(train_seq_length * train_start)
                 input_seq = train_seq[:split_index]
                 target_seq = train_seq[split_index:]
+                ## we randomly sample up to 32 actions per user in this 𝐾 day time window. (PinnerFormer)
+
+                target_seq = random.choices(target_seq, k=sample_actions)
+                # if len(target_seq) > 32:
+                #     target_seq = random.sample(target_seq, 32)
+
                 for target in target_seq:
                     count += 1
                     user_train[count] = input_seq + [target]
@@ -347,7 +603,8 @@ def evaluate(model, dataset, args):
         users = range(1, usernum + 1)
     for u in users:
 
-        if len(train[u]) < 1 or len(test[u]) < 1: continue
+        if len(train[u]) < 1 or len(test[u]) < 1:
+            continue
 
         seq = np.zeros([args.maxlen], dtype=np.int32)
         idx = args.maxlen - 1
@@ -795,7 +1052,10 @@ def evaluate_valid(model, dataset, args):
 
 # Recall@k, XX
 def evaluate_window_valid(model, dataset_window, args):
-    [_, train, valid, test, usernum, itemnum, sample_num] = copy.deepcopy(dataset_window)
+    if args.dense_all_action or args.all_action:
+        [user_input, user_target, train, valid, test, usernum, itemnum] = dataset_window
+    else:
+        [_, train, valid, test, usernum, itemnum, sample_num] = copy.deepcopy(dataset_window)
     Recall = 0.0
     Recall_U = 0.0
     valid_user = 0.0
@@ -846,7 +1106,10 @@ def evaluate_window_valid(model, dataset_window, args):
 
 
 def evaluate_window_test(model, dataset_window, args):
-    [_, train, valid, test, usernum, itemnum, sample_num] = copy.deepcopy(dataset_window)
+    if args.dense_all_action or args.all_action:
+        [user_input, user_target, train, valid, test, usernum, itemnum] = dataset_window
+    else:
+        [_, train, valid, test, usernum, itemnum, sample_num] = copy.deepcopy(dataset_window)
     Recall = 0.0
     Recall_U = 0.0
     valid_user = 0.0
@@ -866,7 +1129,6 @@ def evaluate_window_test(model, dataset_window, args):
         # interacted items
         rated = set(train[u] + valid[u])
         rated.add(0)
-        # ground truth item
         neg = []
         for _ in range(sample_nums):
             t = np.random.randint(1, itemnum + 1)

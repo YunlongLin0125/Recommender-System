@@ -5,7 +5,6 @@ import utils
 
 class PointWiseFeedForward(torch.nn.Module):
     def __init__(self, hidden_units, dropout_rate):
-
         super(PointWiseFeedForward, self).__init__()
 
         self.conv1 = torch.nn.Conv1d(hidden_units, hidden_units, kernel_size=1)
@@ -16,9 +15,10 @@ class PointWiseFeedForward(torch.nn.Module):
 
     def forward(self, inputs):
         outputs = self.dropout2(self.conv2(self.relu(self.dropout1(self.conv1(inputs.transpose(-1, -2))))))
-        outputs = outputs.transpose(-1, -2) # as Conv1D requires (N, C, Length)
+        outputs = outputs.transpose(-1, -2)  # as Conv1D requires (N, C, Length)
         outputs += inputs
         return outputs
+
 
 # pls use the following self-made multihead attention layer
 # in case your pytorch version is below 1.16 or for other reasons
@@ -34,24 +34,24 @@ class SASRec(torch.nn.Module):
 
         # TODO: loss += args.l2_emb for regularizing embedding vectors during training
         # https://stackoverflow.com/questions/42704283/adding-l1-l2-regularization-in-pytorch
-        self.item_emb = torch.nn.Embedding(self.item_num+1, args.hidden_units, padding_idx=0)
-        self.pos_emb = torch.nn.Embedding(args.maxlen, args.hidden_units) # TO IMPROVE
+        self.item_emb = torch.nn.Embedding(self.item_num + 1, args.hidden_units, padding_idx=0)
+        self.pos_emb = torch.nn.Embedding(args.maxlen, args.hidden_units)  # TO IMPROVE
         self.emb_dropout = torch.nn.Dropout(p=args.dropout_rate)
 
-        self.attention_layernorms = torch.nn.ModuleList() # to be Q for self-attention
+        self.attention_layernorms = torch.nn.ModuleList()  # to be Q for self-attention
         self.attention_layers = torch.nn.ModuleList()
         self.forward_layernorms = torch.nn.ModuleList()
         self.forward_layers = torch.nn.ModuleList()
-
         self.last_layernorm = torch.nn.LayerNorm(args.hidden_units, eps=1e-8)
 
         for _ in range(args.num_blocks):
             new_attn_layernorm = torch.nn.LayerNorm(args.hidden_units, eps=1e-8)
             self.attention_layernorms.append(new_attn_layernorm)
 
-            new_attn_layer =  torch.nn.MultiheadAttention(args.hidden_units,
-                                                            args.num_heads,
-                                                            args.dropout_rate)
+            new_attn_layer = torch.nn.MultiheadAttention(args.hidden_units,
+                                                         args.num_heads,
+                                                         args.dropout_rate)
+
             self.attention_layers.append(new_attn_layer)
 
             new_fwd_layernorm = torch.nn.LayerNorm(args.hidden_units, eps=1e-8)
@@ -77,64 +77,96 @@ class SASRec(torch.nn.Module):
         seqs = self.emb_dropout(seqs)
         # dropout
         timeline_mask = torch.BoolTensor(log_seqs == 0).to(self.dev)
-        seqs *= ~timeline_mask.unsqueeze(-1) # broadcast in last dim
+        seqs *= ~timeline_mask.unsqueeze(-1)  # broadcast in last dim
         # mask the elements, ignore the padding tokens (items with id 0) in the sequences.
-        tl = seqs.shape[1] # time dim len for enforce causality
+        tl = seqs.shape[1]  # time dim len for enforce causality
         attention_mask = ~torch.tril(torch.ones((tl, tl), dtype=torch.bool, device=self.dev))
         # casual masking
         # input the sequence to attention layers
         for i in range(len(self.attention_layers)):
             seqs = torch.transpose(seqs, 0, 1)
             Q = self.attention_layernorms[i](seqs)
-            mha_outputs, _ = self.attention_layers[i](Q, seqs, seqs, 
-                                            attn_mask=attention_mask)
-                                            # key_padding_mask=timeline_mask
-                                            # need_weights=False) this arg do not work?
+            mha_outputs, _ = self.attention_layers[i](Q, seqs, seqs,
+                                                      attn_mask=attention_mask)
+            # key_padding_mask=timeline_mask
+            # need_weights=False this arg do not work?
             # multi-head attention outputs
             seqs = Q + mha_outputs
             seqs = torch.transpose(seqs, 0, 1)
 
             seqs = self.forward_layernorms[i](seqs)
             seqs = self.forward_layers[i](seqs)
-            seqs *=  ~timeline_mask.unsqueeze(-1)
+            seqs *= ~timeline_mask.unsqueeze(-1)
 
-        log_feats = self.last_layernorm(seqs) # (U, T, C) -> (U, -1, C)
+        log_feats = self.last_layernorm(seqs)  # (U, T, C) -> (U, -1, C)
         # (batch_size, sequence_length, hidden_units)
         return log_feats
 
-    def forward(self, user_ids, log_seqs, pos_seqs, neg_seqs): # for training        
-        log_feats = self.log2feats(log_seqs) # user_ids hasn't been used yet
-        # (batch_size, sequence_length, hidden_units)
+    ## SASRec forward
+    # def forward(self, user_ids, log_seqs, pos_seqs, neg_seqs): # for training
+    #     log_feats = self.log2feats(log_seqs) # user_ids hasn't been used yet
+    #     # (batch_size, sequence_length, hidden_units)
+    #     pos_embs = self.item_emb(torch.LongTensor(pos_seqs).to(self.dev))
+    #     # (batch_size, sequence_length, hidden_units)
+    #     neg_embs = self.item_emb(torch.LongTensor(neg_seqs).to(self.dev))
+    #     # (batch_size, sequence_length, hidden_units)
+    #     pos_logits = (log_feats * pos_embs).sum(dim=-1)
+    #     # score for positive engagement = (batch_size, sequence_length)
+    #     neg_logits = (log_feats * neg_embs).sum(dim=-1)
+    #     # score for negative engagement = (batch_size, sequence_length)
+    #     return pos_logits, neg_logits # pos_pred, neg_pred
+
+    # All action forward
+    def forward(self, user_ids, log_seqs, pos_seqs, neg_seqs):
+        log_feats = self.log2feats(log_seqs)
         final_feat = log_feats[:, -1, :]
-        # (batch_size, 1, hidden_units)
-        # pos_emb = self.item_emb(torch.LongTensor(pos_seqs[-1]).to(self.dev))
-        # neg_emb = self.item_emb(torch.LongTensor(neg_seqs[-1]).to(self.dev))
+        # final_feature.shape = [batch_size, hidden_units]
+        # pos_seqs.shape = [batch_size, seq_len, num_target]
+        # neg_seqs.shape = [batch_size, seq_len, num_neg]
+        # get the last item in the sequence
+        pos_embs = self.item_emb(torch.LongTensor(pos_seqs).to(self.dev))[:, -1, :]
+        # pos_embs.shape = (batch_size, num_target, hidden_units)
+        neg_embs = self.item_emb(torch.LongTensor(neg_seqs).to(self.dev))[:, -1, :]
+        # neg_embs.shape = (batch_size, num_negs, hidden_units)
+        # len(pos_seqs)
+        pos_logits = (final_feat.unsqueeze(1) * pos_embs).sum(dim=-1)
+        # pos_logits.shape = (batch_size, num_target)
+        neg_logits = (final_feat.unsqueeze(1) * neg_embs).sum(dim=-1)
+        # final_feat.unsqueeze(1).shape = [batch_size, 1, hidden units]
+        # neg_logits.shape = (batch_size, num_negs)
+        return pos_logits, neg_logits
+
+    ## dense all action
+    def forward(self, user_ids, log_seqs, pos_seqs, neg_seqs):
+        log_feats = self.log2feats(log_seqs)
+        # log_feats.shape = [batch_size, seq_len, hidden_units]
+        # pos_seqs.shape = [batch_size, seq_len]
+        # neg_seqs.shape = [batch_size, seq_len]
+        # get the last item in the sequence
         pos_embs = self.item_emb(torch.LongTensor(pos_seqs).to(self.dev))
-        # (batch_size, sequence_length, hidden_units)
-        # pos_id = pos_seqs[-1].item()
-        # neg = [pos_id]
-        # for _ in range(sample_nums):
-        #     t = np.random.randint(1, itemnum + 1)
-        #     while t in neg: t = np.random.randint(1, itemnum + 1)
-        #     neg.append(t)
-        # (neg_num)
+        # pos_embs.shape = (batch_size, seq_len, hidden_units)
         neg_embs = self.item_emb(torch.LongTensor(neg_seqs).to(self.dev))
-        # neg_num, hidden_units
+        # neg_embs.shape = (batch_size, seq_len, neg_nums, hidden_units)
+        # print(neg_embs.shape)
+        # print(log_feats.shape)
+        # print(log_feats.unsqueeze(2).shape)
         pos_logits = (log_feats * pos_embs).sum(dim=-1)
-        # score for positive engagement = (batch_size, sequence_length, 1)
-        neg_logits = (log_feats * neg_embs).sum(dim=-1)
-        # score for negative engagement = (batch_size, sequence_length, 1)
-        return pos_logits, neg_logits # pos_pred, neg_pred
+        # pos_logits.shape = (batch_size, seq_len)
+        neg_logits = (log_feats.unsqueeze(2) * neg_embs).sum(dim=-1)
+        # log_feats.unsqueeze(2).shape = [batch_size, seq_len, 1, hidden_units]
+        # neg_logits.shape = (batch_size, seq_len, neg_nums)
 
-    def predict(self, user_ids, log_seqs, item_indices): # for inference
-        log_feats = self.log2feats(log_seqs) # user_ids hasn't been used yet
+        return pos_logits, neg_logits
 
-        final_feat = log_feats[:, -1, :] # only use last QKV classifier, a waste
+    def predict(self, user_ids, log_seqs, item_indices):  # for inference
+        log_feats = self.log2feats(log_seqs)  # user_ids hasn't been used yet
 
-        item_embs = self.item_emb(torch.LongTensor(item_indices).to(self.dev)) # (U, I, C)
+        final_feat = log_feats[:, -1, :]  # only use last QKV classifier, a waste
 
+        item_embs = self.item_emb(torch.LongTensor(item_indices).to(self.dev))  # (U, I, C)
+        # print(item_embs.shape)
         logits = item_embs.matmul(final_feat.unsqueeze(-1)).squeeze(-1)
 
         # preds = self.pos_sigmoid(logits) # rank same item list for different users
 
-        return logits # preds # (U, I)
+        return logits  # preds # (U, I)
