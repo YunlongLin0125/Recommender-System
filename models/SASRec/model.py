@@ -103,60 +103,60 @@ class SASRec(torch.nn.Module):
         return log_feats
 
     ## SASRec forward
-    # def forward(self, user_ids, log_seqs, pos_seqs, neg_seqs): # for training
-    #     log_feats = self.log2feats(log_seqs) # user_ids hasn't been used yet
-    #     # (batch_size, sequence_length, hidden_units)
-    #     pos_embs = self.item_emb(torch.LongTensor(pos_seqs).to(self.dev))
-    #     # (batch_size, sequence_length, hidden_units)
-    #     neg_embs = self.item_emb(torch.LongTensor(neg_seqs).to(self.dev))
-    #     # (batch_size, sequence_length, hidden_units)
-    #     pos_logits = (log_feats * pos_embs).sum(dim=-1)
-    #     # score for positive engagement = (batch_size, sequence_length)
-    #     neg_logits = (log_feats * neg_embs).sum(dim=-1)
-    #     # score for negative engagement = (batch_size, sequence_length)
-    #     return pos_logits, neg_logits # pos_pred, neg_pred
+    def forward(self, user_ids, log_seqs, pos_seqs, neg_seqs): # for training
+        log_feats = self.log2feats(log_seqs) # user_ids hasn't been used yet
+        # (batch_size, sequence_length, hidden_units)
+        pos_embs = self.item_emb(torch.LongTensor(pos_seqs).to(self.dev))
+        # (batch_size, sequence_length, hidden_units)
+        neg_embs = self.item_emb(torch.LongTensor(neg_seqs).to(self.dev))
+        # (batch_size, sequence_length, hidden_units)
+        pos_logits = (log_feats * pos_embs).sum(dim=-1)
+        # score for positive engagement = (batch_size, sequence_length)
+        neg_logits = (log_feats * neg_embs).sum(dim=-1)
+        # score for negative engagement = (batch_size, sequence_length)
+        return pos_logits, neg_logits # pos_pred, neg_pred
 
     # All action forward
-    def forward(self, user_ids, log_seqs, pos_seqs, neg_seqs):
-        log_feats = self.log2feats(log_seqs)
-        final_feat = log_feats[:, -1, :]
-        # final_feature.shape = [batch_size, hidden_units]
-        # pos_seqs.shape = [batch_size, seq_len, num_target]
-        # neg_seqs.shape = [batch_size, seq_len, num_neg]
-        # get the last item in the sequence
-        pos_embs = self.item_emb(torch.LongTensor(pos_seqs).to(self.dev))[:, -1, :]
-        # pos_embs.shape = (batch_size, num_target, hidden_units)
-        neg_embs = self.item_emb(torch.LongTensor(neg_seqs).to(self.dev))[:, -1, :]
-        # neg_embs.shape = (batch_size, num_negs, hidden_units)
-        # len(pos_seqs)
-        pos_logits = (final_feat.unsqueeze(1) * pos_embs).sum(dim=-1)
-        # pos_logits.shape = (batch_size, num_target)
-        neg_logits = (final_feat.unsqueeze(1) * neg_embs).sum(dim=-1)
-        # final_feat.unsqueeze(1).shape = [batch_size, 1, hidden units]
-        # neg_logits.shape = (batch_size, num_negs)
-        return pos_logits, neg_logits
+    # def forward(self, user_ids, log_seqs, pos_seqs, neg_seqs):
+    #     log_feats = self.log2feats(log_seqs)
+    #     final_feat = log_feats[:, -1, :]
+    #     # final_feature.shape = [batch_size, hidden_units]
+    #     # pos_seqs.shape = [batch_size, seq_len, num_target]
+    #     # neg_seqs.shape = [batch_size, seq_len, num_neg]
+    #     # get the last item in the sequence
+    #     pos_embs = self.item_emb(torch.LongTensor(pos_seqs).to(self.dev))[:, -1, :]
+    #     # pos_embs.shape = (batch_size, num_target, hidden_units)
+    #     neg_embs = self.item_emb(torch.LongTensor(neg_seqs).to(self.dev))[:, -1, :]
+    #     # neg_embs.shape = (batch_size, num_negs, hidden_units)
+    #     # len(pos_seqs)
+    #     pos_logits = (final_feat.unsqueeze(1) * pos_embs).sum(dim=-1)
+    #     # pos_logits.shape = (batch_size, num_target)
+    #     neg_logits = (final_feat.unsqueeze(1) * neg_embs).sum(dim=-1)
+    #     # final_feat.unsqueeze(1).shape = [batch_size, 1, hidden units]
+    #     # neg_logits.shape = (batch_size, num_negs)
+    #     return pos_logits, neg_logits
 
     ## dense all action
-    def forward(self, user_ids, log_seqs, pos_seqs, neg_seqs):
-        log_feats = self.log2feats(log_seqs)
-        # log_feats.shape = [batch_size, seq_len, hidden_units]
-        # pos_seqs.shape = [batch_size, seq_len]
-        # neg_seqs.shape = [batch_size, seq_len]
-        # get the last item in the sequence
-        pos_embs = self.item_emb(torch.LongTensor(pos_seqs).to(self.dev))
-        # pos_embs.shape = (batch_size, seq_len, hidden_units)
-        neg_embs = self.item_emb(torch.LongTensor(neg_seqs).to(self.dev))
-        # neg_embs.shape = (batch_size, seq_len, neg_nums, hidden_units)
-        # print(neg_embs.shape)
-        # print(log_feats.shape)
-        # print(log_feats.unsqueeze(2).shape)
-        pos_logits = (log_feats * pos_embs).sum(dim=-1)
-        # pos_logits.shape = (batch_size, seq_len)
-        neg_logits = (log_feats.unsqueeze(2) * neg_embs).sum(dim=-1)
-        # log_feats.unsqueeze(2).shape = [batch_size, seq_len, 1, hidden_units]
-        # neg_logits.shape = (batch_size, seq_len, neg_nums)
-
-        return pos_logits, neg_logits
+    # def forward(self, user_ids, log_seqs, pos_seqs, neg_seqs):
+    #     log_feats = self.log2feats(log_seqs)
+    #     # log_feats.shape = [batch_size, seq_len, hidden_units]
+    #     # pos_seqs.shape = [batch_size, seq_len]
+    #     # neg_seqs.shape = [batch_size, seq_len]
+    #     # get the last item in the sequence
+    #     pos_embs = self.item_emb(torch.LongTensor(pos_seqs).to(self.dev))
+    #     # pos_embs.shape = (batch_size, seq_len, hidden_units)
+    #     neg_embs = self.item_emb(torch.LongTensor(neg_seqs).to(self.dev))
+    #     # neg_embs.shape = (batch_size, seq_len, neg_nums, hidden_units)
+    #     # print(neg_embs.shape)
+    #     # print(log_feats.shape)
+    #     # print(log_feats.unsqueeze(2).shape)
+    #     pos_logits = (log_feats * pos_embs).sum(dim=-1)
+    #     # pos_logits.shape = (batch_size, seq_len)
+    #     neg_logits = (log_feats.unsqueeze(2) * neg_embs).sum(dim=-1)
+    #     # log_feats.unsqueeze(2).shape = [batch_size, seq_len, 1, hidden_units]
+    #     # neg_logits.shape = (batch_size, seq_len, neg_nums)
+    #
+    #     return pos_logits, neg_logits
 
     def predict(self, user_ids, log_seqs, item_indices):  # for inference
         log_feats = self.log2feats(log_seqs)  # user_ids hasn't been used yet

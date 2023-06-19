@@ -254,6 +254,7 @@ def data_partition_window_dense_all_P(fname, valid_percent, test_percent, train_
         # count user and items
     # read from each user
     for user in User:
+
         nfeedback = len(User[user])
         if nfeedback < 3:
             # continue
@@ -268,8 +269,18 @@ def data_partition_window_dense_all_P(fname, valid_percent, test_percent, train_
             test_index = int(seq_len * test_start)
             if valid_index == test_index:
                 user_train[user] = User[user]
+                split_index = int(len(user_train) * train_start)
+                user_input[user] = User[user][:split_index]
+                user_target[user] = User[user][split_index:]
+                if not user_target[user]:
+                    user_target[user] = [User[user][-1]]
+                    user_input[user] = User[user][:-1]
                 user_valid[user] = []
                 user_test[user] = []
+                if len(user_target[user]) > 32:
+                    user_target[user] = random.sample(user_target[user], k=sample_actions)
+                if len(user_target[user]) < 32:
+                    user_target[user] = random.choices(user_target[user], k=sample_actions)
             else:
                 train_seq = User[user][: valid_index]
                 valid_seq = User[user][valid_index: test_index]
@@ -426,7 +437,9 @@ def data_partition_window_P(fname, valid_percent, test_percent, train_percent):
             valid_index = int(seq_len * valid_start)
             test_index = int(seq_len * test_start)
             if valid_index == test_index:
-                user_train[user] = User[user]
+                count += 1
+                user_train[count] = User[user]
+                user_train_seq[user] = User[user]
                 user_valid[user] = []
                 user_test[user] = []
             else:
@@ -1060,7 +1073,10 @@ def evaluate_window_valid(model, dataset_window, args):
     Recall_U = 0.0
     valid_user = 0.0
     sample_nums = 500
-    users = range(1, usernum + 1)
+    if usernum > 10000:
+        users = random.sample(range(1, usernum + 1), 10000)
+    else:
+        users = range(1, usernum + 1)
     for u in users:
         if len(train[u]) < 1 or len(valid[u]) < 1: continue
         seq = np.zeros([args.maxlen], dtype=np.int32)
@@ -1114,7 +1130,10 @@ def evaluate_window_test(model, dataset_window, args):
     Recall_U = 0.0
     valid_user = 0.0
     sample_nums = 500
-    users = range(1, usernum + 1)
+    if usernum > 10000:
+        users = random.sample(range(1, usernum + 1), 10000)
+    else:
+        users = range(1, usernum + 1)
     for u in users:
         if len(train[u]) < 1 or len(test[u]) < 1: continue
         seq = np.zeros([args.maxlen], dtype=np.int32)

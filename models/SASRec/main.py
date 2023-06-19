@@ -78,7 +78,6 @@ if __name__ == '__main__':
     f = open(os.path.join(args.dataset + '_' + args.train_dir, 'log.txt'), 'w')
     sampler = WarpSampler(sample_train, sample_num, itemnum, batch_size=args.batch_size, maxlen=args.maxlen,
                           n_workers=3)
-
     if args.dense_all_action:
         dataset_dense_all = data_partition_window_dense_all_P(args.dataset, valid_percent=0.1,
                                                               test_percent=0.1, train_percent=0.1)
