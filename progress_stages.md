@@ -104,21 +104,35 @@ what fraction of the index of 1M Pins accounts for 90% of the top 10 retrieved r
 5. PopRec model
 ```
 
-## 613 (Wed.)
+## 614 (Wed.)
 
 ```
 1. Try implement all action prediction method.
-
 ```
 
-## 614 (Thur.)
+## 615 (Thur.)
 ```
 1. Implement Evaluation metrics on HT and nDCG, independently evaluate each val/test target.
 ```
 
-## 615 (Fri.)
+## 616 (Fri.)
 ```
 1. Change back to primary Recall@k Evaluation (SASRec > SASRec-window > all actions).
 2. the reason for action may be the signal flow is too low? (not sure). Adding the negative sampling may improve. 
 (not sure, teammates say not).
 ```
+
+## 618 (Sun.)
+
+```
+1. refactor all action prediction
+2. implement dense all action
+```
+
+## 619 (Mon.)
+
+```
+1. try all models on retailrocket and record the results (focus on recall now)
+2. prepare for the presentation slides (4 training objectives/ Results Analysis)
+```
+
