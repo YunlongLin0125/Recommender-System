@@ -1,4 +1,4 @@
 .DS_Store
 __pycache__/
 ml-1m_default/
-/processed/ml-1m_test/
+/processed/ml-1m_all_action/
