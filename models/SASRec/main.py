@@ -3,11 +3,21 @@ import time
 import torch
 import argparse
 
-from model import SASRec
+from model import SASRec, AllAction, DenseAll
 from utils import *
 import time
+
 os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
 start_time = time.time()
+
+# Define global variables
+DENSE_ALL_ACTION = 'dense_all_action'
+ALL_ACTION = 'all_action'
+NORMAL_SASREC = 'normal_sasrec'
+SASREC_SAMPLED = 'sasrec_sampled'
+
+# Create a list of all model names
+MODEL_NAMES = [DENSE_ALL_ACTION, ALL_ACTION, NORMAL_SASREC, SASREC_SAMPLED]
 
 
 def str2bool(s):
@@ -17,8 +27,9 @@ def str2bool(s):
 
 
 parser = argparse.ArgumentParser()
+parser.add_argument('--model', default=DENSE_ALL_ACTION, choices=MODEL_NAMES, required=True)
 parser.add_argument('--dataset', required=True)
-parser.add_argument('--train_dir', required=True)
+parser.add_argument('--log_dir', required=True)  # train_dir
 parser.add_argument('--batch_size', default=128, type=int)
 parser.add_argument('--lr', default=0.001, type=float)
 parser.add_argument('--maxlen', default=50, type=int)
@@ -34,40 +45,68 @@ parser.add_argument('--state_dict_path', default=None, type=str)
 parser.add_argument('--window_size', default=7, type=int)
 parser.add_argument('--window_predictor', default=False, type=str2bool)
 parser.add_argument('--sas_window_eval', default=False, type=str2bool)
-parser.add_argument('--window_eval', default=False, type=str2bool)
+parser.add_argument('--window_eval', default=True, type=str2bool)
 parser.add_argument('--eval_epoch', default=20, type=int)
-parser.add_argument('--dense_all_action', default=False, type=str2bool)
-parser.add_argument('--all_action', default=False, type=str2bool)
+# parser.add_argument('--loss_function', default='BCE')
 
 args = parser.parse_args()
 # dataset = data_partition(args.dataset)data
 # args.dataset = 'reproduce/' + args.dataset
-if not os.path.isdir(args.dataset + '_' + args.train_dir):
-    os.makedirs(args.dataset + '_' + args.train_dir)
-with open(os.path.join(args.dataset + '_' + args.train_dir, 'args.txt'), 'w') as f:
+if not os.path.isdir(args.dataset + '_' + args.log_dir):
+    os.makedirs(args.dataset + '_' + args.log_dir)
+with open(os.path.join(args.dataset + '_' + args.log_dir, 'args.txt'), 'w') as f:
     f.write('\n'.join([str(k) + ',' + str(v) for k, v in sorted(vars(args).items(), key=lambda x: x[0])]))
 f.close()
 
 if __name__ == '__main__':
-    # global dataset
-    dataset = data_partition(args.dataset)
-    # dataset_window = data_partition_window_fixed(args.dataset, valid_percent=0.1, test_percent=0.1, train_k=7)
-    dataset_window = data_partition_window_P(args.dataset, valid_percent=0.1, test_percent=0.1, train_percent=0.1)
-    [user_train, user_valid, user_test, usernum, itemnum] = dataset
-    sample_num = usernum
-    sample_train = user_train
-    if args.window_predictor:
-        [sample_train, user_train, user_valid, user_test, usernum, itemnum, sample_num] = dataset_window
-    if args.sas_window_eval:
+    if args.model == NORMAL_SASREC:  # normal sasrec but trained on the window train sequence
+        dataset_window = data_partition_window_P(args.dataset, valid_percent=0.1, test_percent=0.1, train_percent=0.1)
         [_, user_train, user_valid, user_test, usernum, itemnum, _] = dataset_window
+        sampler = WarpSampler(user_train, usernum, itemnum, batch_size=args.batch_size, maxlen=args.maxlen,
+                              n_workers=3)
+        dataset = dataset_window
         sample_train = user_train
         sample_num = usernum
-    # if args.dense_all_action:
-    #     dataset_dense_all = data_partition_window_dense_all_P_changeSampling(args.dataset,
-    #                                                                          valid_percent=0.1,
-    #                                                                          test_percent=0.1,
-    #                                                                          train_percent=0.1)
-    #     [sample_train, user_train, user_valid, user_test, usernum, itemnum, samplenum] = dataset_dense_all
+
+    elif args.model == SASREC_SAMPLED:  # sasrec changes the data split to window structure
+        dataset_window = data_partition_window_P(args.dataset, valid_percent=0.1, test_percent=0.1, train_percent=0.1)
+        [sample_train, user_train, user_valid, user_test, usernum, itemnum, sample_num] = dataset_window
+        sampler = WarpSampler(sample_train, sample_num, itemnum, batch_size=args.batch_size, maxlen=args.maxlen,
+                              n_workers=3)
+        dataset = dataset_window
+        sample_train = sample_train
+        sample_num = sample_num
+
+    elif args.model == ALL_ACTION:  # all action prediction
+        dataset_all_action = data_partition_window_dense_all_P(args.dataset, valid_percent=0.1,
+                                                               test_percent=0.1, train_percent=0.1)
+        [user_input, user_target, user_train, user_valid, user_test, usernum, itemnum] = dataset_all_action
+        sampler = WarpSamplerAllAction(user_input, user_target, usernum, itemnum, batch_size=args.batch_size,
+                                       maxlen=args.maxlen, n_workers=3)
+        dataset = dataset_all_action
+        sample_train = user_input
+        sample_num = usernum
+
+    elif args.model == DENSE_ALL_ACTION:  # dense all action prediction
+        dataset_dense_all = data_partition_window_dense_all_P(args.dataset, valid_percent=0.1,
+                                                              test_percent=0.1, train_percent=0.1)
+        [user_input, user_target, user_train, user_valid, user_test, usernum, itemnum] = dataset_dense_all
+        sampler = WarpSamplerDenseAll(user_input, user_target, usernum, itemnum, batch_size=args.batch_size,
+                                      maxlen=args.maxlen, n_workers=3)
+        dataset = dataset_dense_all
+        sample_train = user_input
+        sample_num = usernum
+
+    else:  # Next item prediction SASRec
+        dataset = data_partition(args.dataset)
+        [user_train, user_valid, user_test, usernum, itemnum] = dataset
+        sampler = WarpSampler(user_train, usernum, itemnum, batch_size=args.batch_size, maxlen=args.maxlen,
+                              n_workers=3)
+        dataset = dataset
+        sample_train = user_train
+        sample_num = usernum
+
+    f = open(os.path.join(args.dataset + '_' + args.log_dir, 'log.txt'), 'w')
     num_batch = len(sample_train) // args.batch_size  # tail? + ((len(user_train) % args.batch_size) != 0)
     cc = 0.0
     for u in sample_train:
@@ -75,24 +114,13 @@ if __name__ == '__main__':
     print('average sequence length: %.2f' % (cc / len(sample_train)))
     print('number of training data: %.2f' % len(sample_train))
     print('number of items: %.2f' % itemnum)
-    f = open(os.path.join(args.dataset + '_' + args.train_dir, 'log.txt'), 'w')
-    sampler = WarpSampler(sample_train, sample_num, itemnum, batch_size=args.batch_size, maxlen=args.maxlen,
-                          n_workers=3)
-    if args.dense_all_action:
-        dataset_dense_all = data_partition_window_dense_all_P(args.dataset, valid_percent=0.1,
-                                                              test_percent=0.1, train_percent=0.1)
-        [user_input, user_target, user_train, user_valid, user_test, usernum, itemnum] = dataset_dense_all
-        sampler = WarpSamplerDenseAll(user_input, user_target, usernum, itemnum, batch_size=args.batch_size,
-                                      maxlen=args.maxlen, n_workers=3)
 
-    if args.all_action:
-        dataset_all_action = data_partition_window_dense_all_P(args.dataset, valid_percent=0.1,
-                                                               test_percent=0.1, train_percent=0.1)
-        [user_input, user_target, user_train, user_valid, user_test, usernum, itemnum] = dataset_all_action
-        sampler = WarpSamplerAllAction(user_input, user_target, usernum, itemnum, batch_size=args.batch_size,
-                                       maxlen=args.maxlen, n_workers=3)
-
-    model = SASRec(usernum, itemnum, args).to(args.device)  # no ReLU activation in original SASRec implementation?
+    if args.model == ALL_ACTION:
+        model = AllAction(usernum, itemnum, args).to(args.device)
+    elif args.model == DENSE_ALL_ACTION:
+        model = DenseAll(usernum, itemnum, args).to(args.device)
+    else:
+        model = SASRec(usernum, itemnum, args).to(args.device)  # no ReLU activation in original SASRec implementation?
 
     for name, param in model.named_parameters():
         try:
@@ -115,7 +143,6 @@ if __name__ == '__main__':
             print(args.state_dict_path)
             print('pdb enabled for your quick check, pls type exit() if you do not need it')
             import pdb
-
             pdb.set_trace()
 
     if args.inference_only:
@@ -124,8 +151,8 @@ if __name__ == '__main__':
             t_test = evaluate(model, dataset, args)
             print('test (NDCG@10: %.4f, HR@10: %.4f)' % (t_test[0], t_test[1]))
         else:
-            t_valid = evaluate_window_valid(model, dataset_window, args)
-            t_test = evaluate_window_test(model, dataset_window, args)
+            # t_test = evaluate_window_test(model, dataset, args)
+            t_test = evaluate_window(model, dataset, args, eval_type='test')
             print('test (R@10: %.4f, P90coverage@10: %.4f)' % (t_test[0], t_test[1]))
     # ce_criterion = torch.nn.CrossEntropyLoss()
     # https://github.com/NVIDIA/pix2pixHD/issues/9 how could an old bug appear again...
@@ -145,14 +172,12 @@ if __name__ == '__main__':
             # neg_logits.shape = (batch_size, num_negs)
             pos_labels, neg_labels = torch.ones(pos_logits.shape, device=args.device), torch.zeros(neg_logits.shape,
                                                                                                    device=args.device)
-
             # print("\neye ball check raw_logits:"); print(pos_logits); print(neg_logits)
             # check pos_logits > 0, neg_logits < 0
             adam_optimizer.zero_grad()
             # In case of multiple negative samples, use view to match dimensions
             # normal training
-
-            if args.all_action:
+            if args.model == ALL_ACTION:
                 # all action train
                 # pos_indices = np.where(pos != 0)
                 loss = bce_criterion(pos_logits, pos_labels)
@@ -181,17 +206,10 @@ if __name__ == '__main__':
                 print('epoch:%d, time: %f(s), valid (NDCG@10: %.4f, HR@10: %.4f), test (NDCG@10: %.4f, HR@10: %.4f)'
                       % (epoch, T, t_valid[0], t_valid[1], t_test[0], t_test[1]))
             else:
-                if args.dense_all_action:
-                    t_valid = evaluate_window_valid(model, dataset_dense_all, args)
-                    t_test = evaluate_window_test(model, dataset_dense_all, args)
-                elif args.all_action:
-                    t_valid = evaluate_window_valid(model, dataset_all_action, args)
-                    t_test = evaluate_window_test(model, dataset_all_action, args)
-                else:
-                    t_valid = evaluate_window_valid(model, dataset_window, args)
-                    t_test = evaluate_window_test(model, dataset_window, args)
-                # print('epoch:%d, time: %f(s), valid (NDCG@10: %.4f, HR@10: %.4f), test (NDCG@10: %.4f, HR@10: %.4f)'
-                #       % (epoch, T, t_valid[0], t_valid[1], t_test[0], t_test[1]))
+                # t_valid = evaluate_window_valid(model, dataset, args)
+                # t_test = evaluate_window_test(model, dataset, args)
+                t_valid = evaluate_window(model, dataset, args, eval_type='valid')
+                t_test = evaluate_window(model, dataset, args, eval_type='test')
                 print('epoch:%d, time: %f(s), valid (R@10: %.4f, nn: %.4f), test (R@10: %.4f, nn: %.4f)'
                       % (epoch, T, t_valid[0], t_valid[1], t_test[0], t_test[1]))
                 # print('epoch:%d, time: %f(s), valid (R@10: %.4f, P90coverage@10: %.4f), test (R@10: %.4f, '
@@ -203,7 +221,7 @@ if __name__ == '__main__':
             model.train()
 
         if epoch == args.num_epochs:
-            folder = args.dataset + '_' + args.train_dir
+            folder = args.dataset + '_' + args.log_dir
             fname = 'SASRec.epoch={}.lr={}.layer={}.head={}.hidden={}.maxlen={}.pth'
             fname = fname.format(args.num_epochs, args.lr, args.num_blocks, args.num_heads, args.hidden_units,
                                  args.maxlen)
