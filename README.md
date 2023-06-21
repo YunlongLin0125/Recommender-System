@@ -26,24 +26,12 @@ BERT4Rec: [code](https://github.com/FeiSun/BERT4Rec), [paper](https://arxiv.org/
 
 Same as [PinnerFormer](https://arxiv.org/abs/2205.04507)
 
-* R@k: for Recommendation quality
+* R@k: for Recommendation quality (Currently focus on)
 * P90 coverage@k: P90 coverage means the smallest item sets that appear in the top k lists of at least 90% of the users.
 
 # Test Code:
 
-## SASRec
-### movieLens-1M (SASRec):
-
-<img src="materials\SASRec_train.png" alt="Image" style="width:70%; height:auto;">
-
-<img src="materials\SASRec_eval.png" alt="Image" style="width:70%; height:auto;">
-
-```
-cd models/SASRec
-python main.py --dataset=processed/ml-1m --train_dir=test --maxlen=200 --dropout_rate=0.2 --device=cuda --window_predictor=false --window_eval=false
-```
-
-### Ml-1M (SASRec But evaluate on our evaluation metrics)
+### Ml-1M (Normal SASRec)
 
 <img src="materials\Window_eval.png" alt="Image" style="width:70%; height:auto;">
 
@@ -51,10 +39,10 @@ python main.py --dataset=processed/ml-1m --train_dir=test --maxlen=200 --dropout
 
 ```
 cd models/SASRec
-python main.py --dataset=processed/ml-1m --train_dir=test --maxlen=200 --dropout_rate=0.2 --device=cuda --window_predictor=false --window_eval=true
+python main.py --dataset=processed/ml-1m --log_dir=test --maxlen=200 --dropout_rate=0.2 --device=cuda --model=normal_sasrec --window_eval=true
 ```
 
-### Ml-1M (SASRec change the input feeding strategy and evaluate on our evaluation metrics)
+### Ml-1M (SASRec sampled)
 
 
 
@@ -66,40 +54,54 @@ python main.py --dataset=processed/ml-1m --train_dir=test --maxlen=200 --dropout
 
 ```
 cd models/SASRec
-python main.py --dataset=processed/ml-1m --train_dir=test --maxlen=200 --dropout_rate=0.2 --device=cuda --window_predictor=true --window_eval=true
+python main.py --dataset=processed/ml-1m --log_dir=test --maxlen=200 --dropout_rate=0.2 --device=cuda --model=sasrec_sampled --window_eval=true
 ```
 
-
-
-### RetailRocket (Not tested):
+### Ml-1M (All action)
 
 ```
 cd models/SASRec
-python main.py --dataset=retailrocket --train_dir="store_filepath" --maxlen=50 --dropout_rate=0.5 --device=cuda
+python main.py --dataset=processed/ml-1m --log_dir=test --maxlen=200 --dropout_rate=0.2 --device=cuda --model=all_action--window_eval=true
 ```
 
 
 
+### Ml-1M (Dense all action)
+
+```
+cd models/SASRec
+python main.py --dataset=processed/ml-1m --log_dir=test --maxlen=200 --dropout_rate=0.2 --device=cuda --model=dense_all_action --window_eval=true
+```
 
 
-[//]: # (## GRU4Rec &#40;Incomplete&#41;)
 
-[//]: # (### movieLens-1M:)
+### RetailRocket (Normal SASRec):
 
-[//]: # (```)
+```
+cd models/SASRec
+python main.py --dataset=processed/retailrocket --log_dir=test --maxlen=50 --dropout_rate=0.5 --device=cuda --model=normal_sasrec --window_eval=true
+```
 
-[//]: # (cd models/GRU4Rec)
 
-[//]: # (python main.py --dataset=ml-1m_repro --train_dir=default --maxlen=200 --dropout_rate=0.2 --device=cuda)
+### RetailRocket (SASRec Sampled):
 
-[//]: # (```)
+```
+cd models/SASRec
+python main.py --dataset=processed/retailrocket --log_dir=test --maxlen=50 --dropout_rate=0.5 --device=cuda --model=sasrec_sampled --window_eval=true
+```
 
-[//]: # (### RetailRocket:)
+### RetailRocket (All action):
 
-[//]: # (```)
+```
+cd models/SASRec
+python main.py --dataset=processed/retailrocket --log_dir=test --maxlen=50 --dropout_rate=0.5 --device=cuda --model=all_action --window_eval=true
+```
 
-[//]: # (cd models/GRU4Rec)
+### RetailRocket (Dense all action):
 
-[//]: # (python main.py --dataset=retailrocket --train_dir=default --maxlen=50 --dropout_rate=0.5 --device=cuda)
+```
+cd models/SASRec
+python main.py --dataset=processed/retailrocket --log_dir=test --maxlen=50 --dropout_rate=0.5 --device=cuda --model=dense_all_action --window_eval=true
+```
 
-[//]: # (```)
+

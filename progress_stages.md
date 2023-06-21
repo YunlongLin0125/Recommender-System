@@ -136,3 +136,10 @@ what fraction of the index of 1M Pins accounts for 90% of the top 10 retrieved r
 2. prepare for the presentation slides (4 training objectives/ Results Analysis)
 ```
 
+## 621 (Wed.)
+
+```
+1. Code refactor
+2. Change the loss function (potentially)
+```
+
