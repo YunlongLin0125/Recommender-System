@@ -143,3 +143,11 @@ what fraction of the index of 1M Pins accounts for 90% of the top 10 retrieved r
 2. Change the loss function (potentially)
 ```
 
+
+
+## 622 (Thur.)
+
+```
+1. Implement the loss function Sampled softmax loss only for SASRec now.
+```
+

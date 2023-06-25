@@ -27,19 +27,22 @@ def sample_function(user_train, usernum, itemnum, batch_size, maxlen, result_que
         while len(user_train[user]) <= 1:
             user = np.random.randint(1, usernum + 1)
 
-        seq = np.zeros([maxlen], dtype=np.int32)
-        pos = np.zeros([maxlen], dtype=np.int32)
-        neg = np.zeros([maxlen], dtype=np.int32)
         nxt = user_train[user][-1]
         idx = maxlen - 1
+        num_negs = 10
         ts = set(user_train[user])
+
+        seq = np.zeros([maxlen], dtype=np.int32)
+        pos = np.zeros([maxlen], dtype=np.int32)
+        neg = np.zeros([maxlen, num_negs], dtype=np.int32)
+
         for i in reversed(user_train[user][:-1]):
             # fill the seq with all interacted except the last item as the target action
             # i started by user_train[user][-2]
             seq[idx] = i  # [x,x,x,x,x,x,#]
             pos[idx] = nxt  # [#,y,y,y,y,y,y]
             # negative sampling (random_neq) from 1 to itemnum + 1
-            if nxt != 0: neg[idx] = random_neq(1, itemnum + 1, ts, 1)[0]
+            if nxt != 0: neg[idx] = random_neq(1, itemnum + 1, ts, num_negs)
             nxt = i
             idx -= 1
             if idx == -1: break
@@ -67,13 +70,15 @@ def sample_function_dense_all(user_train, train_target, usernum, itemnum, batch_
         user = np.random.randint(1, usernum + 1)
         while len(user_train[user]) <= 1:
             user = np.random.randint(1, usernum + 1)
-        seq = np.zeros([maxlen], dtype=np.int32)
         idx = maxlen - 1
         ts = set(user_train[user] + train_target[user])
         ## Dense all action
         num_neg_samples = 1
+
+        seq = np.zeros([maxlen], dtype=np.int32)
         pos = np.zeros([maxlen], dtype=np.int32)
         neg = np.zeros([maxlen, num_neg_samples], dtype=np.int32)
+
         for i in reversed(user_train[user]):
             # fill the seq with all interacted except the last item as the target action
             seq[idx] = i  # [x,x,x,x,x,x,#]
