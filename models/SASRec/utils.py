@@ -5,6 +5,7 @@ import random
 import numpy as np
 from collections import defaultdict, Counter
 from multiprocessing import Process, Queue
+from main import *
 
 
 # sampler for batch generation
@@ -47,48 +48,6 @@ def sample_function(user_train, usernum, itemnum, batch_size, maxlen, result_que
             idx -= 1
             if idx == -1: break
 
-        # user: uniformly sampled userid
-        # seq: the sequence of items the user has interacted with
-        # pos: positive samples,
-        # neg: the negative samples respectively
-        return user, seq, pos, neg
-
-    np.random.seed(SEED)
-    while True:
-        one_batch = []
-        for i in range(batch_size):
-            # batch
-            one_batch.append(sample())
-
-        result_queue.put(zip(*one_batch))
-
-
-## dense all action sampling
-def sample_function_dense_all(user_train, train_target, usernum, itemnum, batch_size, maxlen, result_queue, SEED):
-    def sample():
-        # randomly sampled a valid user
-        user = np.random.randint(1, usernum + 1)
-        while len(user_train[user]) <= 1:
-            user = np.random.randint(1, usernum + 1)
-        idx = maxlen - 1
-        ts = set(user_train[user] + train_target[user])
-        ## Dense all action
-        num_neg_samples = 1
-
-        seq = np.zeros([maxlen], dtype=np.int32)
-        pos = np.zeros([maxlen], dtype=np.int32)
-        neg = np.zeros([maxlen, num_neg_samples], dtype=np.int32)
-
-        for i in reversed(user_train[user]):
-            # fill the seq with all interacted except the last item as the target action
-            seq[idx] = i  # [x,x,x,x,x,x,#]
-            random_target = random.sample(train_target[user], 1)[0]
-            pos[idx] = random_target
-            # dense all action connection
-            neg[idx] = random_neq(1, itemnum + 1, ts, num_neg_samples)
-            idx -= 1
-            if idx == -1:
-                break
         # user: uniformly sampled userid
         # seq: the sequence of items the user has interacted with
         # pos: positive samples,
@@ -150,6 +109,175 @@ def sample_function_all_action(user_train, train_target, usernum, itemnum, batch
         result_queue.put(zip(*one_batch))
 
 
+## dense all action sampling
+def sample_function_dense_all(user_train, train_target, usernum, itemnum, batch_size, maxlen, result_queue, SEED):
+    def sample():
+        # randomly sampled a valid user
+        user = np.random.randint(1, usernum + 1)
+        while len(user_train[user]) <= 1:
+            user = np.random.randint(1, usernum + 1)
+        idx = maxlen - 1
+        ts = set(user_train[user] + train_target[user])
+        ## Dense all action
+        num_neg_samples = 10
+
+        seq = np.zeros([maxlen], dtype=np.int32)
+        pos = np.zeros([maxlen], dtype=np.int32)
+        neg = np.zeros([maxlen, num_neg_samples], dtype=np.int32)
+
+        for i in reversed(user_train[user]):
+            # fill the seq with all interacted except the last item as the target action
+            seq[idx] = i  # [x,x,x,x,x,x,#]
+            random_target = random.sample(train_target[user], 1)[0]
+            pos[idx] = random_target
+            # dense all action connection
+            neg[idx] = random_neq(1, itemnum + 1, ts, num_neg_samples)
+            idx -= 1
+            if idx == -1:
+                break
+        # user: uniformly sampled userid
+        # seq: the sequence of items the user has interacted with
+        # pos: positive samples,
+        # neg: the negative samples respectively
+        return user, seq, pos, neg
+
+    np.random.seed(SEED)
+    while True:
+        one_batch = []
+        for i in range(batch_size):
+            # batch
+            one_batch.append(sample())
+
+        result_queue.put(zip(*one_batch))
+
+
+## dense all action plus sampling
+def sample_function_dense_all_plus(user_train, train_target, usernum, itemnum, batch_size, maxlen, result_queue, SEED):
+    def sample():
+        # randomly sampled a valid user
+        user = np.random.randint(1, usernum + 1)
+        while len(user_train[user]) <= 1:
+            user = np.random.randint(1, usernum + 1)
+        idx = maxlen - 1
+        ts = set(user_train[user] + train_target[user])
+        num_pos = len(train_target[user])
+        num_neg_samples = num_pos
+        seq = np.zeros([maxlen], dtype=np.int32)
+        pos = np.zeros([maxlen, num_pos], dtype=np.int32)
+        neg = np.zeros([maxlen, num_neg_samples], dtype=np.int32)
+
+        for i in reversed(user_train[user]):
+            # fill the seq with all interacted except the last item as the target action
+            seq[idx] = i  # [x,x,x,x,x,x,#]
+            # random_target = random.sample(train_target[user], 1)
+            pos[idx] = train_target[user]
+            # dense all action connection
+            neg[idx] = random_neq(1, itemnum + 1, ts, num_neg_samples)
+            idx -= 1
+            if idx == -1:
+                break
+        # user: uniformly sampled userid
+        # seq: the sequence of items the user has interacted with
+        # pos: positive samples,
+        # neg: the negative samples respectively
+        return user, seq, pos, neg
+
+    np.random.seed(SEED)
+    while True:
+        one_batch = []
+        for i in range(batch_size):
+            # batch
+            one_batch.append(sample())
+
+        result_queue.put(zip(*one_batch))
+
+
+## integrated dense all action sampling
+def sample_function_dense_all_plus_plus(user_train, train_target, usernum, itemnum, batch_size, maxlen, result_queue,
+                                        SEED):
+    def sample():
+        # randomly sampled a valid user
+        user = np.random.randint(1, usernum + 1)
+        while len(user_train[user]) <= 1:
+            user = np.random.randint(1, usernum + 1)
+        idx = maxlen - 1
+        ts = set(user_train[user] + train_target[user])
+
+        num_pos = len(train_target[user]) + 1
+        num_neg_samples = num_pos
+        seq = np.zeros([maxlen], dtype=np.int32)
+        pos = np.zeros([maxlen, num_pos], dtype=np.int32)
+        neg = np.zeros([maxlen, num_neg_samples], dtype=np.int32)
+        nxt = user_train[user][-1]
+        for i in reversed(user_train[user][:-1]):
+            # fill the seq with all interacted except the last item as the target action
+            seq[idx] = i  # [x,x,x,x,x,x,#]
+            # random_target = random.sample(train_target[user], 1)
+            pos[idx] = [nxt] + train_target[user]
+            # dense all action connection
+            if nxt != 0:
+                neg[idx] = random_neq(1, itemnum + 1, ts, num_neg_samples)
+            nxt = i
+            idx -= 1
+            if idx == -1:
+                break
+        # pos.shape = [batch_size, seq_len, num_pos (targets + 1)]
+        # neg.shape = [batch_size, seq_len, num_negs (targets + 1)]
+        return user, seq, pos, neg
+
+    np.random.seed(SEED)
+    while True:
+        one_batch = []
+        for i in range(batch_size):
+            # batch
+            one_batch.append(sample())
+
+        result_queue.put(zip(*one_batch))
+
+
+## integrated dense all action
+def sample_function_dense_all_integrated(user_train, train_target, usernum, itemnum, batch_size, maxlen, result_queue,
+                                         SEED):
+    def sample():
+        # randomly sampled a valid user
+        user = np.random.randint(1, usernum + 1)
+        while len(user_train[user]) <= 1:
+            user = np.random.randint(1, usernum + 1)
+        idx = maxlen - 1
+        ts = set(user_train[user] + train_target[user])
+
+        num_pos = 2
+        num_neg_samples = 10
+        seq = np.zeros([maxlen], dtype=np.int32)
+        pos = np.zeros([maxlen, num_pos], dtype=np.int32)
+        neg = np.zeros([maxlen, num_neg_samples], dtype=np.int32)
+        nxt = user_train[user][-1]
+        for i in reversed(user_train[user][:-1]):
+            # fill the seq with all interacted except the last item as the target action
+            seq[idx] = i  # [x,x,x,x,x,x,#]
+            random_target = random.sample(train_target[user], 1)
+            pos[idx] = [nxt] + random_target
+            # dense all action connection
+            if nxt != 0:
+                neg[idx] = random_neq(1, itemnum + 1, ts, num_neg_samples)
+            nxt = i
+            idx -= 1
+            if idx == -1:
+                break
+        # pos.shape = [batch_size, seq_len, nxt + one random target]
+        # neg.shape = [batch_size, seq_len, num_neg]
+        return user, seq, pos, neg
+
+    np.random.seed(SEED)
+    while True:
+        one_batch = []
+        for i in range(batch_size):
+            # batch
+            one_batch.append(sample())
+
+        result_queue.put(zip(*one_batch))
+
+
 class WarpSampler(object):
     def __init__(self, User, usernum, itemnum, batch_size=64, maxlen=10, n_workers=1):
         self.result_queue = Queue(maxsize=n_workers * 10)
@@ -176,21 +304,21 @@ class WarpSampler(object):
             p.join()
 
 
-class WarpSamplerDenseAll(object):
+class WarpSamplerAllAction(object):
     def __init__(self, user_input, user_target, usernum, itemnum, batch_size=64, maxlen=10, n_workers=1):
         self.result_queue = Queue(maxsize=n_workers * 10)
         self.processors = []
         for i in range(n_workers):
             self.processors.append(
-                Process(target=sample_function_dense_all, args=(user_input,
-                                                        user_target,
-                                                        usernum,
-                                                        itemnum,
-                                                        batch_size,
-                                                        maxlen,
-                                                        self.result_queue,
-                                                        np.random.randint(2e9)
-                                                        )))
+                Process(target=sample_function_all_action, args=(user_input,
+                                                                 user_target,
+                                                                 usernum,
+                                                                 itemnum,
+                                                                 batch_size,
+                                                                 maxlen,
+                                                                 self.result_queue,
+                                                                 np.random.randint(2e9)
+                                                                 )))
             self.processors[-1].daemon = True
             self.processors[-1].start()
 
@@ -203,21 +331,102 @@ class WarpSamplerDenseAll(object):
             p.join()
 
 
-class WarpSamplerAllAction(object):
+class WarpSamplerDenseAll(object):
     def __init__(self, user_input, user_target, usernum, itemnum, batch_size=64, maxlen=10, n_workers=1):
         self.result_queue = Queue(maxsize=n_workers * 10)
         self.processors = []
         for i in range(n_workers):
             self.processors.append(
-                Process(target=sample_function_all_action, args=(user_input,
-                                                        user_target,
-                                                        usernum,
-                                                        itemnum,
-                                                        batch_size,
-                                                        maxlen,
-                                                        self.result_queue,
-                                                        np.random.randint(2e9)
-                                                        )))
+                Process(target=sample_function_dense_all, args=(user_input,
+                                                                user_target,
+                                                                usernum,
+                                                                itemnum,
+                                                                batch_size,
+                                                                maxlen,
+                                                                self.result_queue,
+                                                                np.random.randint(2e9)
+                                                                )))
+            self.processors[-1].daemon = True
+            self.processors[-1].start()
+
+    def next_batch(self):
+        return self.result_queue.get()
+
+    def close(self):
+        for p in self.processors:
+            p.terminate()
+            p.join()
+
+
+class WarpSamplerDenseAllPlus(object):
+    def __init__(self, user_input, user_target, usernum, itemnum, batch_size=64, maxlen=10, n_workers=1):
+        self.result_queue = Queue(maxsize=n_workers * 10)
+        self.processors = []
+        for i in range(n_workers):
+            self.processors.append(
+                Process(target=sample_function_dense_all_plus, args=(user_input,
+                                                                     user_target,
+                                                                     usernum,
+                                                                     itemnum,
+                                                                     batch_size,
+                                                                     maxlen,
+                                                                     self.result_queue,
+                                                                     np.random.randint(2e9)
+                                                                     )))
+            self.processors[-1].daemon = True
+            self.processors[-1].start()
+
+    def next_batch(self):
+        return self.result_queue.get()
+
+    def close(self):
+        for p in self.processors:
+            p.terminate()
+            p.join()
+
+
+class WarpSamplerIntegrated(object):
+    def __init__(self, user_input, user_target, usernum, itemnum, batch_size=64, maxlen=10, n_workers=1):
+        self.result_queue = Queue(maxsize=n_workers * 10)
+        self.processors = []
+        for i in range(n_workers):
+            self.processors.append(
+                Process(target=sample_function_dense_all_integrated, args=(user_input,
+                                                                           user_target,
+                                                                           usernum,
+                                                                           itemnum,
+                                                                           batch_size,
+                                                                           maxlen,
+                                                                           self.result_queue,
+                                                                           np.random.randint(2e9)
+                                                                           )))
+            self.processors[-1].daemon = True
+            self.processors[-1].start()
+
+    def next_batch(self):
+        return self.result_queue.get()
+
+    def close(self):
+        for p in self.processors:
+            p.terminate()
+            p.join()
+
+
+class WarpSamplerDenseAllPlusPlus(object):
+    def __init__(self, user_input, user_target, usernum, itemnum, batch_size=64, maxlen=10, n_workers=1):
+        self.result_queue = Queue(maxsize=n_workers * 10)
+        self.processors = []
+        for i in range(n_workers):
+            self.processors.append(
+                Process(target=sample_function_dense_all_plus_plus, args=(user_input,
+                                                                          user_target,
+                                                                          usernum,
+                                                                          itemnum,
+                                                                          batch_size,
+                                                                          maxlen,
+                                                                          self.result_queue,
+                                                                          np.random.randint(2e9)
+                                                                          )))
             self.processors[-1].daemon = True
             self.processors[-1].start()
 
@@ -232,7 +441,7 @@ class WarpSamplerAllAction(object):
 
 def data_partition_window_dense_all_P(fname, valid_percent, test_percent, train_percent):
     if valid_percent + test_percent > 0.6:
-        print('the percent you select for val/test are too high')
+        print('the percent you select for val/lr0.001_10neg are too high')
         return None
     valid_start = 1 - valid_percent - test_percent
     test_start = 1 - test_percent
@@ -308,7 +517,7 @@ def data_partition_window_dense_all_P(fname, valid_percent, test_percent, train_
                 user_target[user] = []
                 user_target[user] += target_seq
                 # store the target sequence
-                # split the whole sequence to train/valid/test
+                # split the whole sequence to train/valid/lr0.001_10neg
                 user_train[user] = []
                 user_train[user] += train_seq
                 user_valid[user] = []
@@ -320,7 +529,7 @@ def data_partition_window_dense_all_P(fname, valid_percent, test_percent, train_
 
 def data_partition_window_P(fname, valid_percent, test_percent, train_percent):
     if valid_percent + test_percent > 0.6:
-        print('the percent you select for val/test are too high')
+        print('the percent you select for val/lr0.001_10neg are too high')
         return None
     valid_start = 1 - valid_percent - test_percent
     test_start = 1 - test_percent
@@ -394,7 +603,7 @@ def data_partition_window_P(fname, valid_percent, test_percent, train_percent):
 
 def data_partition_window_fixed(fname, valid_percent, test_percent, train_k):
     if valid_percent + test_percent > 0.6:
-        print('the percent you select for val/test are too high')
+        print('the percent you select for val/lr0.001_10neg are too high')
         return None
     valid_start = 1 - valid_percent - test_percent
     test_start = 1 - test_percent
@@ -447,7 +656,7 @@ def data_partition_window_fixed(fname, valid_percent, test_percent, train_k):
     return [user_train, user_train_seq, user_valid, user_test, usernum, itemnum, samplenum]
 
 
-# train/val/test data generation
+# train/val/lr0.001_10neg data generation
 def data_partition(fname):
     usernum = 0
     itemnum = 0
@@ -480,8 +689,8 @@ def data_partition(fname):
     return [user_train, user_valid, user_test, usernum, itemnum]
 
 
-# TODO: merge evaluate functions for test and val set
-# evaluate on test set
+# TODO: merge evaluate functions for lr0.001_10neg and val set
+# evaluate on lr0.001_10neg set
 def evaluate(model, dataset, args):
     [train, valid, test, usernum, itemnum] = copy.deepcopy(dataset)
     NDCG = 0.0
@@ -588,7 +797,7 @@ def evaluate_valid(model, dataset, args):
 
 # fixed window size
 # def evaluate_window_valid(model, dataset_window, args):
-#     [_, train, valid, test, usernum, itemnum, samplenum] = copy.deepcopy(dataset_window)
+#     [_, train, valid, lr0.001_10neg, usernum, itemnum, samplenum] = copy.deepcopy(dataset_window)
 #     NDCG = 0.0
 #     valid_user = 0.0
 #     HT = 0.0
@@ -640,7 +849,7 @@ def evaluate_valid(model, dataset, args):
 #
 #
 # def evaluate_window_test(model, dataset_window, args):
-#     [_, train, valid, test, usernum, itemnum, samplenum] = copy.deepcopy(dataset_window)
+#     [_, train, valid, lr0.001_10neg, usernum, itemnum, samplenum] = copy.deepcopy(dataset_window)
 #     NDCG = 0.0
 #     valid_user = 0.0
 #     HT = 0.0
@@ -651,8 +860,8 @@ def evaluate_valid(model, dataset, args):
 #     else:
 #         users = range(1, usernum + 1)
 #     for u in users:
-#         if len(train[u]) < 1 or len(test[u]) < k: continue
-#         test_num = len(test[u])
+#         if len(train[u]) < 1 or len(lr0.001_10neg[u]) < k: continue
+#         test_num = len(lr0.001_10neg[u])
 #         test_num = 7
 #         nDCG_u = 0
 #         ht_u = 0
@@ -670,7 +879,7 @@ def evaluate_valid(model, dataset, args):
 #         rated.add(0)
 #         # process items
 #         for test_id in range(test_num):
-#             item_idx = [test[u][test_id]]
+#             item_idx = [lr0.001_10neg[u][test_id]]
 #             for _ in range(sample_nums):
 #                 t = np.random.randint(1, itemnum + 1)
 #                 while t in rated: t = np.random.randint(1, itemnum + 1)
@@ -692,7 +901,7 @@ def evaluate_valid(model, dataset, args):
 
 # (Hit Ratio, nDCG) on percentage
 # def evaluate_window_valid(model, dataset_window, args):
-#     [_, train, valid, test, usernum, itemnum, samplenum] = copy.deepcopy(dataset_window)
+#     [_, train, valid, lr0.001_10neg, usernum, itemnum, samplenum] = copy.deepcopy(dataset_window)
 #     NDCG = 0.0
 #     valid_user = 0.0
 #     HT = 0.0
@@ -749,7 +958,7 @@ def evaluate_valid(model, dataset, args):
 #
 #
 # def evaluate_window_test(model, dataset_window, args):
-#     [_, train, valid, test, usernum, itemnum, samplenum] = copy.deepcopy(dataset_window)
+#     [_, train, valid, lr0.001_10neg, usernum, itemnum, samplenum] = copy.deepcopy(dataset_window)
 #     NDCG = 0.0
 #     valid_user = 0.0
 #     HT = 0.0
@@ -763,7 +972,7 @@ def evaluate_valid(model, dataset, args):
 #     else:
 #         users = range(1, usernum + 1)
 #     for u in users:
-#         if len(train[u]) < 1 or len(test[u]) < 1: continue
+#         if len(train[u]) < 1 or len(lr0.001_10neg[u]) < 1: continue
 #         seq = np.zeros([args.maxlen], dtype=np.int32)
 #         idx = args.maxlen - 1
 #         for i in reversed(train[u] + valid[u]):
@@ -777,12 +986,12 @@ def evaluate_valid(model, dataset, args):
 #         rated = set(train[u] + valid[u])
 #         rated.add(0)
 #         # process items
-#         item_idx = test[u]
+#         item_idx = lr0.001_10neg[u]
 #         for _ in range(sample_nums):
 #             t = np.random.randint(1, itemnum + 1)
 #             while t in rated: t = np.random.randint(1, itemnum + 1)
 #             item_idx.append(t)
-#         valid_num = len(test[u])
+#         valid_num = len(lr0.001_10neg[u])
 #         # collect all indexes, which needs to process on
 #         predictions = -model.predict(*[np.array(l) for l in [[u], [seq], item_idx]])[0]
 #         # ranks = predictions.argsort().argsort()[:valid_num].item()
@@ -809,8 +1018,8 @@ def evaluate_valid(model, dataset, args):
 
 ## (Recall@k, P90 Coverage)
 # def evaluate_window_valid(model, dataset, dataset_window, args):
-#     [train, valid, test, usernum, itemnum] = copy.deepcopy(dataset)
-#     [_, train, valid, test, _, itemnum, sample_num] = copy.deepcopy(dataset_window)
+#     [train, valid, lr0.001_10neg, usernum, itemnum] = copy.deepcopy(dataset)
+#     [_, train, valid, lr0.001_10neg, _, itemnum, sample_num] = copy.deepcopy(dataset_window)
 #     Recall = 0.0
 #     Recall_U = 0.0
 #     coverage_list = []
@@ -876,8 +1085,8 @@ def evaluate_valid(model, dataset, args):
 #
 #
 # def evaluate_window_test(model, dataset, dataset_window, args):
-#     [train, valid, test, usernum, itemnum] = copy.deepcopy(dataset)
-#     [_, train, valid, test, _, itemnum, sample_num] = copy.deepcopy(dataset_window)
+#     [train, valid, lr0.001_10neg, usernum, itemnum] = copy.deepcopy(dataset)
+#     [_, train, valid, lr0.001_10neg, _, itemnum, sample_num] = copy.deepcopy(dataset_window)
 #     Recall = 0.0
 #     Recall_U = 0.0
 #     coverage_list = []
@@ -889,7 +1098,7 @@ def evaluate_valid(model, dataset, args):
 #     sample_idx_tensor = torch.tensor(sample_idx).to(args.device)
 #     users = range(1, usernum + 1)
 #     for u in users:
-#         if len(train[u]) < 1 or len(test[u]) < 1: continue
+#         if len(train[u]) < 1 or len(lr0.001_10neg[u]) < 1: continue
 #         seq = np.zeros([args.maxlen], dtype=np.int32)
 #         idx = args.maxlen - 1
 #         for i in reversed(train[u] + valid[u]):
@@ -903,8 +1112,8 @@ def evaluate_valid(model, dataset, args):
 #         rated = set(train[u]+valid[u])
 #         rated.add(0)
 #         # ground truth item
-#         ground_truth_idx = test[u]
-#         test_num = len(test[u])
+#         ground_truth_idx = lr0.001_10neg[u]
+#         test_num = len(lr0.001_10neg[u])
 #         # collect all indexes, which needs to process on
 #         process_idx = ground_truth_idx + sample_idx
 #         predictions = -model.predict(*[np.array(l) for l in [[u], [seq], process_idx]])[0]
@@ -1055,7 +1264,7 @@ def evaluate_window_test(model, dataset, args):
 
 
 def evaluate_window(model, dataset, args, eval_type='valid'):
-    if args.model in ['all_action', 'dense_all_action']:
+    if args.model not in [NORMAL_SASREC, SASREC_SAMPLED]:
         [user_input, user_target, train, valid, test, usernum, itemnum] = dataset
     else:
         [_, train, valid, test, usernum, itemnum, sample_num] = copy.deepcopy(dataset)

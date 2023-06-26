@@ -3,7 +3,7 @@ import time
 import torch
 import argparse
 
-from model import SASRec, AllAction, DenseAll, SASRecSampledLoss, AllActionSampledLoss
+from model import *
 from utils import *
 import time
 
@@ -15,12 +15,16 @@ DENSE_ALL_ACTION = 'dense_all_action'
 ALL_ACTION = 'all_action'
 NORMAL_SASREC = 'normal_sasrec'
 SASREC_SAMPLED = 'sasrec_sampled'
+DENSE_ALL_PLUS = 'dense_all_action_plus'
+DENSE_ALL_PLUS_PLUS = 'dense_all_action_plus_plus'
+INTEGRATED = 'integrated'
 
 BCE = 'bce'
 SAMPLED_SOFTMAX = 'sampled_softmax'
 
 # Create a list of all model names
-MODEL_NAMES = [DENSE_ALL_ACTION, ALL_ACTION, NORMAL_SASREC, SASREC_SAMPLED]
+MODEL_NAMES = [DENSE_ALL_ACTION, ALL_ACTION, NORMAL_SASREC, SASREC_SAMPLED,
+               DENSE_ALL_PLUS, INTEGRATED, DENSE_ALL_PLUS_PLUS]
 LOSS_FUNCTIONS = [BCE, SAMPLED_SOFTMAX]
 
 
@@ -37,6 +41,7 @@ parser.add_argument('--dataset', required=True)
 parser.add_argument('--log_dir', required=True)  # train_dir
 parser.add_argument('--batch_size', default=128, type=int)
 parser.add_argument('--lr', default=0.001, type=float)
+# set the learning rate
 parser.add_argument('--maxlen', default=50, type=int)
 parser.add_argument('--hidden_units', default=50, type=int)
 parser.add_argument('--num_blocks', default=2, type=int)
@@ -47,7 +52,7 @@ parser.add_argument('--l2_emb', default=0.0, type=float)
 parser.add_argument('--device', default='cpu', type=str)
 parser.add_argument('--inference_only', default=False, type=str2bool)
 parser.add_argument('--state_dict_path', default=None, type=str)
-parser.add_argument('--window_size', default=7, type=int)
+# parser.add_argument('--window_size', default=7, type=int)
 parser.add_argument('--window_predictor', default=False, type=str2bool)
 parser.add_argument('--sas_window_eval', default=False, type=str2bool)
 parser.add_argument('--window_eval', default=True, type=str2bool)
@@ -101,6 +106,37 @@ if __name__ == '__main__':
         sample_train = user_input
         sample_num = usernum
 
+    elif args.model == DENSE_ALL_PLUS:  # dense all action plus
+        dataset_dense_all = data_partition_window_dense_all_P(args.dataset, valid_percent=0.1,
+                                                              test_percent=0.1, train_percent=0.1)
+        [user_input, user_target, user_train, user_valid, user_test, usernum, itemnum] = dataset_dense_all
+        sampler = WarpSamplerDenseAllPlus(user_input, user_target, usernum, itemnum, batch_size=args.batch_size,
+                                          maxlen=args.maxlen, n_workers=3)
+        dataset = dataset_dense_all
+        sample_train = user_input
+        sample_num = usernum
+
+    elif args.model == INTEGRATED:  # integrated model
+        dataset_dense_all = data_partition_window_dense_all_P(args.dataset, valid_percent=0.1,
+                                                              test_percent=0.1, train_percent=0.1)
+        [user_input, user_target, user_train, user_valid, user_test, usernum, itemnum] = dataset_dense_all
+        sampler = WarpSamplerIntegrated(user_input, user_target, usernum, itemnum, batch_size=args.batch_size,
+                                        maxlen=args.maxlen, n_workers=3)
+        dataset = dataset_dense_all
+        sample_train = user_input
+        sample_num = usernum
+
+    elif args.model == DENSE_ALL_PLUS_PLUS:  # integrated model
+        dataset_dense_all = data_partition_window_dense_all_P(args.dataset, valid_percent=0.1,
+                                                              test_percent=0.1, train_percent=0.1)
+        [user_input, user_target, user_train, user_valid, user_test, usernum, itemnum] = dataset_dense_all
+        sampler = WarpSamplerDenseAllPlusPlus(user_input, user_target, usernum, itemnum, batch_size=args.batch_size,
+                                        maxlen=args.maxlen, n_workers=3)
+        dataset = dataset_dense_all
+        sample_train = user_input
+        sample_num = usernum
+
+
     else:  # Next item prediction SASRec
         dataset = data_partition(args.dataset)
         [user_train, user_valid, user_test, usernum, itemnum] = dataset
@@ -120,18 +156,27 @@ if __name__ == '__main__':
     print('number of items: %.2f' % itemnum)
 
     if args.model == ALL_ACTION:
+        # final N pos, N neg
         if args.loss_function == BCE:  # binary cross entropy loss
             model = AllAction(usernum, itemnum, args).to(args.device)
         else:
             model = AllActionSampledLoss(usernum, itemnum, args).to(args.device)
 
     elif args.model == DENSE_ALL_ACTION:
+        # 1 pos, N neg
         if args.loss_function == BCE:  # binary cross entropy loss
             model = DenseAll(usernum, itemnum, args).to(args.device)
         else:
-            model = DenseAll(usernum, itemnum, args).to(args.device)
+            model = DenseAllSampledLoss(usernum, itemnum, args).to(args.device)
 
+    elif args.model == DENSE_ALL_PLUS or args.model == INTEGRATED or args.model == DENSE_ALL_PLUS_PLUS:
+        # N pos, N neg
+        if args.loss_function == BCE:
+            model = DenseAllPlus(usernum, itemnum, args).to(args.device)
+        else:
+            model = DenseAllPlusSampledLoss(usernum, itemnum, args).to(args.device)
     else:
+        # 1 pos, N neg
         if args.loss_function == BCE:  # binary cross entropy loss
             model = SASRec(usernum, itemnum, args).to(args.device)
             # no ReLU activation in original SASRec implementation?
@@ -166,11 +211,11 @@ if __name__ == '__main__':
         if not args.window_eval:
             model.eval()
             t_test = evaluate(model, dataset, args)
-            print('test (NDCG@10: %.4f, HR@10: %.4f)' % (t_test[0], t_test[1]))
+            print('lr0.001_10neg (NDCG@10: %.4f, HR@10: %.4f)' % (t_test[0], t_test[1]))
         else:
             # t_test = evaluate_window_test(model, dataset, args)
-            t_test = evaluate_window(model, dataset, args, eval_type='test')
-            print('test (R@10: %.4f, P90coverage@10: %.4f)' % (t_test[0], t_test[1]))
+            t_test = evaluate_window(model, dataset, args, eval_type='lr0.001_10neg')
+            print('lr0.001_10neg (R@10: %.4f, P90coverage@10: %.4f)' % (t_test[0], t_test[1]))
     # ce_criterion = torch.nn.CrossEntropyLoss()
     # https://github.com/NVIDIA/pix2pixHD/issues/9 how could an old bug appear again...
     bce_criterion = torch.nn.BCEWithLogitsLoss()  # torch.nn.BCELoss()
@@ -188,18 +233,17 @@ if __name__ == '__main__':
                 u, seq, pos, neg = sampler.next_batch()  # tuples to ndarray
                 u, seq, pos, neg = np.array(u), np.array(seq), np.array(pos), np.array(neg)
                 pos_logits, neg_logits = model(u, seq, pos, neg)
-                logits = torch.cat([pos_logits.unsqueeze(-1), neg_logits.unsqueeze(-1)], dim=-1)
                 # pos_logits.shape = (batch_size, num_targets)
                 # neg_logits.shape = (batch_size, num_negs)
                 pos_labels, neg_labels = torch.ones(pos_logits.shape, device=args.device), torch.zeros(neg_logits.shape,
                                                                                                        device=args.device)
-                labels = torch.cat([pos_labels.unsqueeze(-1), neg_labels.unsqueeze(-1)], dim=-1)
                 # print("\neye ball check raw_logits:"); print(pos_logits); print(neg_logits)
                 # check pos_logits > 0, neg_logits < 0
                 adam_optimizer.zero_grad()
                 # In case of multiple negative samples, use view to match dimensions
                 # normal training
                 if args.model == ALL_ACTION:
+                    # only all action model use the final embedding as the user embedding
                     # all action train
                     # pos_indices = np.where(pos != 0)
                     loss = bce_criterion(pos_logits, pos_labels)
@@ -231,9 +275,10 @@ if __name__ == '__main__':
                 # if model == dense_all_action
                 # pos_logits.shape = [batch_size, sequence_length]
                 # neg_logits.shape = [batch_size, sequence_length, num_negs]
-                if args.model == ALL_ACTION:
+                if args.model not in [NORMAL_SASREC, SASREC_SAMPLED, DENSE_ALL_ACTION]:
+                    # have more than one pos each pos
                     softmax_denominator = torch.sum(torch.exp(neg_logits), dim=-1).unsqueeze(-1) + torch.exp(pos_logits)
-                    # softmax_denominator.shape = [batch_size, num_targets]
+                    # softmax_denominator.shape = [batch_size, num_pos]
                     loss = - torch.log(torch.exp(pos_logits) / softmax_denominator)
                     # loss = -pos_logits + softmax_denominator
                 else:
@@ -259,16 +304,16 @@ if __name__ == '__main__':
             if not args.window_eval:
                 t_valid = evaluate_valid(model, dataset, args)
                 t_test = evaluate(model, dataset, args)
-                print('epoch:%d, time: %f(s), valid (NDCG@10: %.4f, HR@10: %.4f), test (NDCG@10: %.4f, HR@10: %.4f)'
+                print('epoch:%d, time: %f(s), valid (NDCG@10: %.4f, HR@10: %.4f), lr0.001_10neg (NDCG@10: %.4f, HR@10: %.4f)'
                       % (epoch, T, t_valid[0], t_valid[1], t_test[0], t_test[1]))
             else:
                 # t_valid = evaluate_window_valid(model, dataset, args)
                 # t_test = evaluate_window_test(model, dataset, args)
                 t_valid = evaluate_window(model, dataset, args, eval_type='valid')
-                t_test = evaluate_window(model, dataset, args, eval_type='test')
-                print('epoch:%d, time: %f(s), valid (R@10: %.4f, nn: %.4f), test (R@10: %.4f, nn: %.4f)'
+                t_test = evaluate_window(model, dataset, args, eval_type='lr0.001_10neg')
+                print('epoch:%d, time: %f(s), valid (R@10: %.4f, nn: %.4f), lr0.001_10neg (R@10: %.4f, nn: %.4f)'
                       % (epoch, T, t_valid[0], t_valid[1], t_test[0], t_test[1]))
-                # print('epoch:%d, time: %f(s), valid (R@10: %.4f, P90coverage@10: %.4f), test (R@10: %.4f, '
+                # print('epoch:%d, time: %f(s), valid (R@10: %.4f, P90coverage@10: %.4f), lr0.001_10neg (R@10: %.4f, '
                 #       'P90coverage@10: %.4f)'
                 #       % (epoch, T, t_valid[0], t_valid[1], t_test[0], t_test[1]))
             f.write(str(t_valid) + ' ' + str(t_test) + '\n')
@@ -279,8 +324,8 @@ if __name__ == '__main__':
         if epoch == args.num_epochs:
             # folder = args.dataset + '_' + args.log_dir
             folder = args.log_dir
-            fname = 'SASRec.epoch={}.lr={}.layer={}.head={}.hidden={}.maxlen={}.pth'
-            fname = fname.format(args.num_epochs, args.lr, args.num_blocks, args.num_heads, args.hidden_units,
+            fname = '{}.epoch={}.lr={}.layer={}.head={}.hidden={}.maxlen={}.pth'
+            fname = fname.format(args.model, args.num_epochs, args.lr, args.num_blocks, args.num_heads, args.hidden_units,
                                  args.maxlen)
             torch.save(model.state_dict(), os.path.join(folder, fname))
 

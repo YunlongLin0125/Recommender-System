@@ -151,3 +151,10 @@ what fraction of the index of 1M Pins accounts for 90% of the top 10 retrieved r
 1. Implement the loss function Sampled softmax loss only for SASRec now.
 ```
 
+## 625 (Sun.)
+
+```
+1. Implement loss function for all models.
+2. Plan to find the optimal hyperparameters for different models.
+```
+

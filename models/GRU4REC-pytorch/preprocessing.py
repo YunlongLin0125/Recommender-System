@@ -8,7 +8,7 @@ import pandas as pd
 import datetime
 
 dataBefore = 'data/raw_data/yoochoose-clicks-super-small.dat' #Path to Original Training Dataset "Clicks" File
-dataTestBefore = 'data/raw_data/yoochoose-test.dat' #Path to Original Testing Dataset "Clicks" File
+dataTestBefore = 'data/raw_data/yoochoose-lr0.001_10neg.dat' #Path to Original Testing Dataset "Clicks" File
 dataAfter = 'data/processed_small/' #Path to Processed Dataset Folder
 dayTime = 86400 #Validation Only one day = 86400 seconds
 
@@ -42,7 +42,7 @@ sessionMaxTime = data.groupby('SessionID').Time.max() #group by sessionID and ge
 sessionTrain = sessionMaxTime[sessionMaxTime < (timeMax - dayTime)].index #training split is all sessions that ended before the last day
 sessionTest  = sessionMaxTime[sessionMaxTime >= (timeMax - dayTime)].index #testing split is all sessions has records in the last day
 train = data[np.in1d(data.SessionID, sessionTrain)]
-test = data[np.in1d(data.SessionID, sessionTest)]
+lr0.001_10neg = data[np.in1d(data.SessionID, sessionTest)]
 '''
 #Delete records in testing split where items are not in training split
 test = test[np.in1d(test.ItemID, train.ItemID)]
