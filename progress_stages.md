@@ -156,5 +156,17 @@ what fraction of the index of 1M Pins accounts for 90% of the top 10 retrieved r
 ```
 1. Implement loss function for all models.
 2. Plan to find the optimal hyperparameters for different models.
+3. Implement Dense all +, Dense all ++, and a combined model.
+```
+
+## 626 （Mon.）
+
+```
+1. Run experiments for all existing models.
+2. Slides preparation
+3. One team mate(U) says his all action started working(means got better result than baseline?)
+4. Experiments(hyperparameters for all action model)
+5. Experiments(Compared the loss function Sampled Softmax v.s. BCE)
+6. Experiments(new models on ml-1m with sampled softmax loss)
 ```
 
