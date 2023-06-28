@@ -57,6 +57,7 @@ parser.add_argument('--window_predictor', default=False, type=str2bool)
 parser.add_argument('--sas_window_eval', default=False, type=str2bool)
 parser.add_argument('--window_eval', default=True, type=str2bool)
 parser.add_argument('--eval_epoch', default=20, type=int)
+parser.add_argument('--frozen_item', default=False, type=str2bool)
 
 args = parser.parse_args()
 # dataset = data_partition(args.dataset)data
@@ -207,7 +208,16 @@ if __name__ == '__main__':
 
     # this fails embedding init 'Embedding' object has no attribute 'dim'
     # model.apply(torch.nn.init.xavier_uniform_)
-
+    # Transfer learning framework
+    if args.froze_item:
+        source_model = SASRec(usernum, itemnum, args).to(args.device)  # This is your source model.
+        source_model.load_state_dict(torch.load('path_to_source_model_weights'))
+        # map_location=torch.device(args.device)
+        item_emb_param = source_model.item_emb.weight.data.clone()
+        model.item_emb.weight.data = item_emb_param
+        for param in model.item_emb.parameters():
+            param.requires_grad = False
+    #
     model.train()  # enable model training
     epoch_start_idx = 1
     if args.state_dict_path is not None:

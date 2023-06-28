@@ -174,6 +174,7 @@ what fraction of the index of 1M Pins accounts for 90% of the top 10 retrieved r
 
 ```
 1. improve the model using teammate's method sampling strategy (change the train_target window)
-2. try something transfer learning, item embedding for 1 model, 1 model for the prediction progress.
+2. try something transfer learning, item embedding for 1 model, 1 model for the prediction progress (other parameters).
+## if the transfer learning still does not work. Need to check the implementation.
 ```
 
