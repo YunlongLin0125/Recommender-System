@@ -2,3 +2,4 @@
 __pycache__/
 ml-1m_default/
 /processed/ml-1m_all_action/
+/test/
