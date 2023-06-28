@@ -159,7 +159,7 @@ what fraction of the index of 1M Pins accounts for 90% of the top 10 retrieved r
 3. Implement Dense all +, Dense all ++, and a combined model.
 ```
 
-## 626 （Mon.）
+## 626 (Mon.)
 
 ```
 1. Run experiments for all existing models.
@@ -168,5 +168,12 @@ what fraction of the index of 1M Pins accounts for 90% of the top 10 retrieved r
 4. Experiments(hyperparameters for all action model)
 5. Experiments(Compared the loss function Sampled Softmax v.s. BCE)
 6. Experiments(new models on ml-1m with sampled softmax loss)
+```
+
+## 628 (Wed.)
+
+```
+1. improve the model using teammate's method sampling strategy (change the train_target window)
+2. try something transfer learning, item embedding for 1 model, 1 model for the prediction progress.
 ```
 
