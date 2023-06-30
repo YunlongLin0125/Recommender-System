@@ -661,9 +661,8 @@ class DenseAllSampledLoss(torch.nn.Module):
         # pos_embs.shape = (batch_size, seq_len, hidden_units)
         neg_embs = self.item_emb(torch.LongTensor(neg_seqs).to(self.dev))
         # neg_embs.shape = (batch_size, seq_len, neg_nums, hidden_units)
-        # print(neg_embs.shape)
-        # print(log_feats.shape)
         # print(log_feats.unsqueeze(2).shape)
+        pos_embs = pos_embs.squeeze(-2)
         pos_logits = (log_feats * pos_embs).sum(dim=-1) / self.temperature
         # score for positive engagement = (batch_size, sequence_length)
         neg_logits = (log_feats.unsqueeze(2) * neg_embs).sum(dim=-1) / self.temperature

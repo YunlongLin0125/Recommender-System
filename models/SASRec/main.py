@@ -209,9 +209,10 @@ if __name__ == '__main__':
     # this fails embedding init 'Embedding' object has no attribute 'dim'
     # model.apply(torch.nn.init.xavier_uniform_)
     # Transfer learning framework
-    if args.froze_item:
-        source_model = SASRec(usernum, itemnum, args).to(args.device)  # This is your source model.
-        source_model.load_state_dict(torch.load('path_to_source_model_weights'))
+    if args.frozen_item:
+        source_model = SASRecSampledLoss(usernum, itemnum, args).to(args.device)  # This is your source model.
+        source_model.load_state_dict(torch.load('test/normal_sasrec/lr0.001/normal_sasrec.epoch=261.lr=0.001.layer=2'
+                                                '.head=1.hidden=50.maxlen=200.pth'))
         # map_location=torch.device(args.device)
         item_emb_param = source_model.item_emb.weight.data.clone()
         model.item_emb.weight.data = item_emb_param
@@ -219,6 +220,10 @@ if __name__ == '__main__':
             param.requires_grad = False
     #
     model.train()  # enable model training
+    t_valid = evaluate_window(model, dataset, args, eval_type='valid')
+    t_test = evaluate_window(model, dataset, args, eval_type='test')
+    f.write(str(t_valid) + ' ' + str(t_test) + '\n')
+
     epoch_start_idx = 1
     if args.state_dict_path is not None:
         try:
@@ -310,7 +315,7 @@ if __name__ == '__main__':
                     # softmax_denominator.shape = [batch_size, num_pos]
                     loss = - torch.log(torch.exp(pos_logits) / softmax_denominator)
                     # loss = -pos_logits + softmax_denominator
-                else:
+                else: # NORMAL_SASREC, SASREC_SAMPLED, DENSE_ALL_ACTION
                     logits = torch.cat([pos_logits.unsqueeze(-1), neg_logits], dim=-1)
                     # logits.shape = [batch_size, sequence_length, 1 + num_negs]
                     softmax_denominator = torch.logsumexp(logits, dim=-1)
