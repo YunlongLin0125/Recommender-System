@@ -59,6 +59,7 @@ parser.add_argument('--sas_window_eval', default=False, type=str2bool)
 parser.add_argument('--window_eval', default=True, type=str2bool)
 parser.add_argument('--eval_epoch', default=20, type=int)
 parser.add_argument('--frozen_item', default=False, type=str2bool)
+parser.add_argument('--temporal', default=False, type=str2bool)
 
 args = parser.parse_args()
 # dataset = data_partition(args.dataset)data
@@ -70,100 +71,106 @@ with open(os.path.join(args.log_dir, 'args.txt'), 'w') as f:
 f.close()
 
 if __name__ == '__main__':
-    if args.model == NORMAL_SASREC:  # normal sasrec but trained on the window train sequence
-        dataset_window = data_partition_window_TrainOnly_byP(args.dataset, valid_percent=0.1, test_percent=0.1,
-                                                             train_percent=0.1)
-        [_, user_train, user_valid, user_test, usernum, itemnum, _] = dataset_window
-        sampler = WarpSamplerTrainOnly(user_train, usernum, itemnum, args, batch_size=args.batch_size,
-                                       maxlen=args.maxlen,
-                                       n_workers=3)
-        dataset = dataset_window
-        sample_train = user_train
-        sample_num = usernum
-
-    elif args.model == SASREC_SAMPLED:  # sasrec changes the data split to window structure
-        dataset_window = data_partition_window_TrainOnly_byP(args.dataset, valid_percent=0.1, test_percent=0.1,
-                                                             train_percent=0.1)
-        [sample_train, user_train, user_valid, user_test, usernum, itemnum, sample_num] = dataset_window
-        sampler = WarpSamplerTrainOnly(sample_train, sample_num, itemnum, args, batch_size=args.batch_size,
-                                       maxlen=args.maxlen,
-                                       n_workers=3)
-        dataset = dataset_window
-        sample_train = sample_train
-        sample_num = sample_num
-
-    elif args.model == ALL_ACTION:  # all action prediction
-        dataset_all_action = data_partition_window_InputTarget_byP(args.dataset, valid_percent=0.1,
-                                                                   test_percent=0.1, train_percent=0.1)
-        [user_input, user_target, user_train, user_valid, user_test, usernum, itemnum] = dataset_all_action
-        # sampler = WarpSamplerAllAction(user_input, user_target, usernum, itemnum, batch_size=args.batch_size,
-        #                                maxlen=args.maxlen, n_workers=3)
-        sampler = WarpSamplerInputTarget(user_input, user_target, usernum, itemnum, args, batch_size=args.batch_size,
-                                         maxlen=args.maxlen, n_workers=3)
-        dataset = dataset_all_action
+    if args.temporal:
+        dataset = data_partition_window_InputTarget_byT(args.dataset + '_train', args.dataset + '_target')
+        [user_input, user_target, usernum, itemnum, train_users, valid_users, test_users] = dataset
+        sampler = WarpSamplerInputTarget_byT(user_input, user_target, train_users, usernum, itemnum, args,
+                                             batch_size=args.batch_size, maxlen=args.maxlen, n_workers=3)
+        dataset = dataset
         sample_train = user_input
         sample_num = usernum
+    else:
+        if args.model == NORMAL_SASREC:  # normal sasrec but trained on the window train sequence
+            dataset_window = data_partition_window_TrainOnly_byP(args.dataset, valid_percent=0.1, test_percent=0.1,
+                                                                 train_percent=0.1)
+            [_, user_train, user_valid, user_test, usernum, itemnum, _] = dataset_window
+            sampler = WarpSamplerTrainOnly(user_train, usernum, itemnum, args, batch_size=args.batch_size,
+                                           maxlen=args.maxlen,
+                                           n_workers=3)
+            dataset = dataset_window
+            sample_train = user_train
+            sample_num = usernum
 
-    elif args.model == DENSE_ALL_ACTION:  # dense all action prediction
-        dataset_dense_all = data_partition_window_InputTarget_byP(args.dataset, valid_percent=0.1,
-                                                                  test_percent=0.1, train_percent=0.1)
-        [user_input, user_target, user_train, user_valid, user_test, usernum, itemnum] = dataset_dense_all
-        sampler = WarpSamplerInputTarget(user_input, user_target, usernum, itemnum, args, batch_size=args.batch_size,
-                                         maxlen=args.maxlen, n_workers=3)
-        dataset = dataset_dense_all
-        sample_train = user_input
-        sample_num = usernum
+        elif args.model == SASREC_SAMPLED:  # sasrec changes the data split to window structure
+            dataset_window = data_partition_window_TrainOnly_byP(args.dataset, valid_percent=0.1, test_percent=0.1,
+                                                                 train_percent=0.1)
+            [sample_train, user_train, user_valid, user_test, usernum, itemnum, sample_num] = dataset_window
+            sampler = WarpSamplerTrainOnly(sample_train, sample_num, itemnum, args, batch_size=args.batch_size,
+                                           maxlen=args.maxlen,
+                                           n_workers=3)
+            dataset = dataset_window
+            sample_train = sample_train
+            sample_num = sample_num
 
-    elif args.model == DENSE_ALL_PLUS:  # dense all action plus
-        dataset_dense_all = data_partition_window_InputTarget_byP(args.dataset, valid_percent=0.1,
-                                                                  test_percent=0.1, train_percent=0.1)
-        [user_input, user_target, user_train, user_valid, user_test, usernum, itemnum] = dataset_dense_all
-        # sampler = WarpSamplerDenseAllPlus(user_input, user_target, usernum, itemnum, batch_size=args.batch_size,
-        #                                   maxlen=args.maxlen, n_workers=3)
-        sampler = WarpSamplerInputTarget(user_input, user_target, usernum, itemnum, args, batch_size=args.batch_size,
-                                         maxlen=args.maxlen, n_workers=3)
-        dataset = dataset_dense_all
-        sample_train = user_input
-        sample_num = usernum
+        elif args.model == ALL_ACTION:  # all action prediction
+            dataset_all_action = data_partition_window_InputTarget_byP(args.dataset, valid_percent=0.1,
+                                                                       test_percent=0.1, train_percent=0.1)
+            [user_input, user_target, user_train, user_valid, user_test, usernum, itemnum] = dataset_all_action
+            # sampler = WarpSamplerAllAction(user_input, user_target, usernum, itemnum, batch_size=args.batch_size,
+            #                                maxlen=args.maxlen, n_workers=3)
+            sampler = WarpSamplerInputTarget(user_input, user_target, usernum, itemnum, args, batch_size=args.batch_size,
+                                             maxlen=args.maxlen, n_workers=3)
+            dataset = dataset_all_action
+            sample_train = user_input
+            sample_num = usernum
 
-    elif args.model == INTEGRATED:  # integrated model
-        dataset_dense_all = data_partition_window_InputTarget_byP(args.dataset, valid_percent=0.1,
-                                                                  test_percent=0.1, train_percent=0.1)
-        [user_input, user_target, user_train, user_valid, user_test, usernum, itemnum] = dataset_dense_all
-        # sampler = WarpSamplerIntegrated(user_input, user_target, usernum, itemnum, batch_size=args.batch_size,
-        #                                 maxlen=args.maxlen, n_workers=3)
-        sampler = WarpSamplerInputTarget(user_input, user_target, usernum, itemnum, args, batch_size=args.batch_size,
-                                         maxlen=args.maxlen, n_workers=3)
-        dataset = dataset_dense_all
-        sample_train = user_input
-        sample_num = usernum
+        elif args.model == DENSE_ALL_ACTION:  # dense all action prediction
+            dataset_dense_all = data_partition_window_InputTarget_byP(args.dataset, valid_percent=0.1,
+                                                                      test_percent=0.1, train_percent=0.1)
+            [user_input, user_target, user_train, user_valid, user_test, usernum, itemnum] = dataset_dense_all
+            sampler = WarpSamplerInputTarget(user_input, user_target, usernum, itemnum, args, batch_size=args.batch_size,
+                                             maxlen=args.maxlen, n_workers=3)
+            dataset = dataset_dense_all
+            sample_train = user_input
+            sample_num = usernum
 
-    elif args.model == DENSE_ALL_PLUS_PLUS:  # integrated model
-        dataset_dense_all = data_partition_window_InputTarget_byP(args.dataset, valid_percent=0.1,
-                                                                  test_percent=0.1, train_percent=0.1)
-        [user_input, user_target, user_train, user_valid, user_test, usernum, itemnum] = dataset_dense_all
-        # sampler = WarpSamplerDenseAllPlusPlus(user_input, user_target, usernum, itemnum, batch_size=args.batch_size,
-        #                                       maxlen=args.maxlen, n_workers=3)
-        sampler = WarpSamplerInputTarget(user_input, user_target, usernum, itemnum, args, batch_size=args.batch_size,
-                                         maxlen=args.maxlen, n_workers=3)
-        dataset = dataset_dense_all
-        sample_train = user_input
-        sample_num = usernum
+        elif args.model == DENSE_ALL_PLUS:  # dense all action plus
+            dataset_dense_all = data_partition_window_InputTarget_byP(args.dataset, valid_percent=0.1,
+                                                                      test_percent=0.1, train_percent=0.1)
+            [user_input, user_target, user_train, user_valid, user_test, usernum, itemnum] = dataset_dense_all
+            # sampler = WarpSamplerDenseAllPlus(user_input, user_target, usernum, itemnum, batch_size=args.batch_size,
+            #                                   maxlen=args.maxlen, n_workers=3)
+            sampler = WarpSamplerInputTarget(user_input, user_target, usernum, itemnum, args, batch_size=args.batch_size,
+                                             maxlen=args.maxlen, n_workers=3)
+            dataset = dataset_dense_all
+            sample_train = user_input
+            sample_num = usernum
 
-    else:  # Next item prediction SASRec
-        print("Cannot find the suitable sampler for your model, check the model again.")
-        quit()
-        dataset_dense_all = data_partition_window_InputTarget_byP(args.dataset, valid_percent=0.1,
-                                                                  test_percent=0.1, train_percent=0.1)
-        [user_input, user_target, user_train, user_valid, user_test, usernum, itemnum] = dataset_dense_all
-        # sampler = WarpSamplerDenseAllPlusPlus(user_input, user_target, usernum, itemnum, batch_size=args.batch_size,
-        #                                       maxlen=args.maxlen, n_workers=3)
-        sampler = WarpSamplerInputTarget(user_input, user_target, usernum, itemnum, args, batch_size=args.batch_size,
-                                         maxlen=args.maxlen, n_workers=3)
-        dataset = dataset_dense_all
-        sample_train = user_input
-        sample_num = usernum
+        elif args.model == INTEGRATED:  # integrated model
+            dataset_dense_all = data_partition_window_InputTarget_byP(args.dataset, valid_percent=0.1,
+                                                                      test_percent=0.1, train_percent=0.1)
+            [user_input, user_target, user_train, user_valid, user_test, usernum, itemnum] = dataset_dense_all
+            # sampler = WarpSamplerIntegrated(user_input, user_target, usernum, itemnum, batch_size=args.batch_size,
+            #                                 maxlen=args.maxlen, n_workers=3)
+            sampler = WarpSamplerInputTarget(user_input, user_target, usernum, itemnum, args, batch_size=args.batch_size,
+                                             maxlen=args.maxlen, n_workers=3)
+            dataset = dataset_dense_all
+            sample_train = user_input
+            sample_num = usernum
 
+        elif args.model == DENSE_ALL_PLUS_PLUS:  # integrated model
+            dataset_dense_all = data_partition_window_InputTarget_byP(args.dataset, valid_percent=0.1,
+                                                                      test_percent=0.1, train_percent=0.1)
+            [user_input, user_target, user_train, user_valid, user_test, usernum, itemnum] = dataset_dense_all
+            # sampler = WarpSamplerDenseAllPlusPlus(user_input, user_target, usernum, itemnum, batch_size=args.batch_size,
+            #                                       maxlen=args.maxlen, n_workers=3)
+            sampler = WarpSamplerInputTarget(user_input, user_target, usernum, itemnum, args, batch_size=args.batch_size,
+                                             maxlen=args.maxlen, n_workers=3)
+            dataset = dataset_dense_all
+            sample_train = user_input
+            sample_num = usernum
+
+        else:  # Next item prediction SASRec
+            print("Cannot find the suitable sampler for your model, check the model again.")
+            quit()
+            dataset_dense_all = data_partition_window_InputTarget_byP(args.dataset, valid_percent=0.1,
+                                                                      test_percent=0.1, train_percent=0.1)
+            [user_input, user_target, user_train, user_valid, user_test, usernum, itemnum] = dataset_dense_all
+            sampler = WarpSamplerInputTarget(user_input, user_target, usernum, itemnum, args, batch_size=args.batch_size,
+                                             maxlen=args.maxlen, n_workers=3)
+            dataset = dataset_dense_all
+            sample_train = user_input
+            sample_num = usernum
     f = open(os.path.join(args.log_dir, 'log.txt'), 'w')
     num_batch = len(sample_train) // args.batch_size  # tail? + ((len(user_train) % args.batch_size) != 0)
     cc = 0.0
@@ -218,18 +225,24 @@ if __name__ == '__main__':
         elif 'retailrocket' in args.dataset:
             source_model.load_state_dict(torch.load('test/retailrocket/item_emb/normal_sasrec.epoch=61.lr=0.001.layer=2'
                                                     '.head=1.hidden=50.maxlen=200.pth'))
-
+        elif 'ml-20m' in args.dataset:
+            source_model.load_state_dict(torch.load('test/ml-20m/item_emb/normal_sasrec.epoch=50.lr=0.001.layer=2'
+                                                    '.head=1.hidden=50.maxlen=200.pth'))
         # map_location=torch.device(args.device)
         item_emb_param = source_model.item_emb.weight.data.clone()
         model.item_emb.weight.data = item_emb_param
         for param in model.item_emb.parameters():
             param.requires_grad = False
+        if not args.temporal:
+            t_valid = evaluate_window(model, dataset, args, eval_type='valid')
+            t_test = evaluate_window(model, dataset, args, eval_type='test')
+        else:
+            t_valid = evaluate_window_byT(model, dataset, args, eval_type='valid')
+            t_test = evaluate_window_byT(model, dataset, args, eval_type='test')
+        f.write(str(t_valid) + ' ' + str(t_test) + '\n')
+
     #
     model.train()  # enable model training
-    t_valid = evaluate_window(model, dataset, args, eval_type='valid')
-    t_test = evaluate_window(model, dataset, args, eval_type='test')
-    f.write(str(t_valid) + ' ' + str(t_test) + '\n')
-
     epoch_start_idx = 1
     if args.state_dict_path is not None:
         try:
@@ -253,8 +266,12 @@ if __name__ == '__main__':
             print('test (NDCG@10: %.4f, HR@10: %.4f)' % (t_test[0], t_test[1]))
         else:
             # t_test = evaluate_window_test(model, dataset, args)
-            t_test = evaluate_window(model, dataset, args, eval_type='test')
+            if not args.temporal:
+                t_test = evaluate_window(model, dataset, args, eval_type='test')
+            else:
+                t_test = evaluate_window_byT(model, dataset, args, eval_type='test')
             print('test (R@10: %.4f, P90coverage@10: %.4f)' % (t_test[0], t_test[1]))
+
     # ce_criterion = torch.nn.CrossEntropyLoss()
     # https://github.com/NVIDIA/pix2pixHD/issues/9 how could an old bug appear again...
     bce_criterion = torch.nn.BCEWithLogitsLoss()  # torch.nn.BCELoss()
@@ -305,6 +322,7 @@ if __name__ == '__main__':
                 u, seq, pos, neg = sampler.next_batch()  # tuples to ndarray
                 u, seq, pos, neg = np.array(u), np.array(seq), np.array(pos), np.array(neg)
                 pos_logits, neg_logits = model(u, seq, pos, neg)
+
                 # if model == normal_sasrec
                 # pos_logits.shape = [batch_size, sequence_length]
                 # neg_logits.shape = [batch_size, sequence_length, num_negs]
@@ -357,8 +375,12 @@ if __name__ == '__main__':
             else:
                 # t_valid = evaluate_window_valid(model, dataset, args)
                 # t_test = evaluate_window_test(model, dataset, args)
-                t_valid = evaluate_window(model, dataset, args, eval_type='valid')
-                t_test = evaluate_window(model, dataset, args, eval_type='test')
+                if not args.temporal:
+                    t_valid = evaluate_window(model, dataset, args, eval_type='valid')
+                    t_test = evaluate_window(model, dataset, args, eval_type='test')
+                else:
+                    t_valid = evaluate_window_byT(model, dataset, args, eval_type='valid')
+                    t_test = evaluate_window_byT(model, dataset, args, eval_type='test')
                 print('epoch:%d, time: %f(s), valid (R@10: %.4f, nn: %.4f), test (R@10: %.4f, nn: %.4f)'
                       % (epoch, T, t_valid[0], t_valid[1], t_test[0], t_test[1]))
                 # print('epoch:%d, time: %f(s), valid (R@10: %.4f, P90coverage@10: %.4f), test (R@10: %.4f, '

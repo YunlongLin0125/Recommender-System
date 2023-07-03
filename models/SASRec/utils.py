@@ -150,6 +150,116 @@ def sample_function_input_target(user_train, train_target, usernum, itemnum,
         result_queue.put(zip(*one_batch))
 
 
+def sample_function_input_target_byT(user_train, train_target, train_ids, usernum, itemnum,
+                                     batch_size, maxlen, result_queue, args, SEED):
+    def sample():
+        # randomly select a trained used user index
+        user = random.choice(train_ids)
+        while len(user_train[user]) <= 1:
+            user = random.choice(train_ids)
+        idx = maxlen - 1
+        num_neg = 10
+        sample_actions = 16
+        target_seq = train_target[user]
+        if args.model == DENSE_ALL_ACTION:
+            target_seq = train_target[user]
+        else:
+            if len(target_seq) > sample_actions:
+                target_seq = random.sample(target_seq, k=sample_actions)
+            if len(target_seq) < sample_actions:
+                target_seq = random.choices(target_seq, k=sample_actions)
+        ts = set(user_train[user] + target_seq)
+        if args.model == ALL_ACTION:
+            num_pos = len(target_seq)
+        elif args.model == NORMAL_SASREC:
+            num_pos = 1
+        elif args.model == DENSE_ALL_ACTION:
+            num_pos = 1
+        elif args.model == DENSE_ALL_PLUS:
+            num_pos = len(target_seq)
+        elif args.model == DENSE_ALL_PLUS_PLUS:
+            num_pos = len(target_seq) + 1
+        elif args.model == INTEGRATED:
+            num_pos = 2
+        else:
+            num_pos = 1
+            print("wrong model")
+            quit()
+        seq = np.zeros([maxlen], dtype=np.int32)
+        pos = np.zeros([maxlen, num_pos], dtype=np.int32)
+        neg = np.zeros([maxlen, num_neg], dtype=np.int32)
+        if args.model in [ALL_ACTION, DENSE_ALL_ACTION, DENSE_ALL_PLUS]:
+            # model: connections only between the input sequence and the target sequence
+            for i in reversed(user_train[user]):
+                # fill the seq with all interacted except the last item as the target action
+                seq[idx] = i  # [x,x,x,x,x,x,#]
+                # random_target = random.sample(train_target[user], 1)[0]
+                # feed pos
+                if args.model == ALL_ACTION:
+                    if idx == maxlen - 1:
+                        pos[idx] = target_seq
+                        neg[idx] = random_neq(1, itemnum + 1, ts, num_neg)
+                elif args.model == DENSE_ALL_ACTION:
+                    pos[idx] = random.sample(target_seq, 1)[0]
+                    neg[idx] = random_neq(1, itemnum + 1, ts, num_neg)
+                elif args.model == DENSE_ALL_PLUS:
+                    pos[idx] = target_seq
+                    neg[idx] = random_neq(1, itemnum + 1, ts, num_neg)
+                idx -= 1
+                if idx == -1:
+                    break
+        elif args.model in [DENSE_ALL_PLUS_PLUS, INTEGRATED]:
+            # model: connections include between the two parts and also the next item prediction.
+            nxt = user_train[user][-1]
+            for i in reversed(user_train[user][:-1]):
+                # fill the seq with all interacted except the last item as the target action
+                seq[idx] = i  # [x,x,x,x,x,x,#]
+                # random_target = random.sample(train_target[user], 1)[0]
+                if args.model == DENSE_ALL_PLUS_PLUS:
+                    if nxt != 0:
+                        pos[idx] = [nxt] + target_seq
+                        neg[idx] = random_neq(1, itemnum + 1, ts, num_neg)
+                elif args.model == INTEGRATED:
+                    if nxt != 0:
+                        random_target = random.sample(target_seq, 1)
+                        pos[idx] = [nxt] + random_target
+                        neg[idx] = random_neq(1, itemnum + 1, ts, num_neg)
+                nxt = i
+                idx -= 1
+                if idx == -1:
+                    break
+
+        elif args.model in [NORMAL_SASREC, SASREC_SAMPLED]:
+            num_neg = 1
+            seq = np.zeros([maxlen], dtype=np.int32)
+            pos = np.zeros([maxlen], dtype=np.int32)
+            neg = np.zeros([maxlen, num_neg], dtype=np.int32)
+            nxt = (user_train[user] + train_target[user])[-1]
+            ts = user_train[user] + train_target[user]
+            for i in reversed((user_train[user] + train_target[user])[:-1]):
+                # fill the seq with all interacted except the last item as the target action
+                # i started by user_train[user][-2]
+                seq[idx] = i  # [x,x,x,x,x,x,#]
+                pos[idx] = nxt  # [#,y,y,y,y,y,y]
+                # negative sampling (random_neq) from 1 to itemnum + 1
+                if nxt != 0:
+                    neg[idx] = random_neq(1, itemnum + 1, ts, num_neg)
+                nxt = i
+                idx -= 1
+                if idx == -1:
+                    break
+        return user, seq, pos, neg
+
+    np.random.seed(SEED)
+    while True:
+        one_batch = []
+        for i in range(batch_size):
+            # batch
+            one_batch.append(sample())
+
+        result_queue.put(zip(*one_batch))
+
+
 class WarpSamplerTrainOnly(object):
     def __init__(self, user_train, usernum, itemnum, args, batch_size=64, maxlen=10, n_workers=1):
         self.result_queue = Queue(maxsize=n_workers * 10)
@@ -193,6 +303,36 @@ class WarpSamplerInputTarget(object):
                                                                    args,
                                                                    np.random.randint(2e9)
                                                                    )))
+            self.processors[-1].daemon = True
+            self.processors[-1].start()
+
+    def next_batch(self):
+        return self.result_queue.get()
+
+    def close(self):
+        for p in self.processors:
+            p.terminate()
+            p.join()
+
+
+class WarpSamplerInputTarget_byT(object):
+    def __init__(self, user_input, user_target, train_ids, usernum, itemnum, args, batch_size=64, maxlen=10,
+                 n_workers=1):
+        self.result_queue = Queue(maxsize=n_workers * 10)
+        self.processors = []
+        for i in range(n_workers):
+            self.processors.append(
+                Process(target=sample_function_input_target_byT, args=(user_input,
+                                                                       user_target,
+                                                                       train_ids,
+                                                                       usernum,
+                                                                       itemnum,
+                                                                       batch_size,
+                                                                       maxlen,
+                                                                       self.result_queue,
+                                                                       args,
+                                                                       np.random.randint(2e9)
+                                                                       )))
             self.processors[-1].daemon = True
             self.processors[-1].start()
 
@@ -607,7 +747,8 @@ def data_partition_window_InputTarget_byT(f_train, f_target):
         user_target[u].append(i)
         # count user and items
     users = list(user_input.keys())
-    random.shuffle(users)
+    rng = random.Random(1)
+    rng.shuffle(users)
     # Split the keys into train, valid, test
     train_users = users[:int(usernum * train_split)]
     valid_users = users[int(usernum * train_split):int(usernum * valid_split)]
@@ -615,10 +756,9 @@ def data_partition_window_InputTarget_byT(f_train, f_target):
     return [user_input, user_target, usernum, itemnum, train_users, valid_users, test_users]
 
 
-
 def data_partition_window_InputTarget_byP(fname, valid_percent, test_percent, train_percent):
     if valid_percent + test_percent > 0.6:
-        print('the percent you select for val/lr0.001_10neg are too high')
+        print('the percent you select for val/test are too high')
         return None
     valid_start = 1 - valid_percent - test_percent
     test_start = 1 - test_percent
@@ -694,7 +834,7 @@ def data_partition_window_InputTarget_byP(fname, valid_percent, test_percent, tr
                 user_target[user] = []
                 user_target[user] += target_seq
                 # store the target sequence
-                # split the whole sequence to train/valid/lr0.001_10neg
+                # split the whole sequence to train/valid/test
                 user_train[user] = []
                 user_train[user] += train_seq
                 user_valid[user] = []
@@ -706,7 +846,7 @@ def data_partition_window_InputTarget_byP(fname, valid_percent, test_percent, tr
 
 def data_partition_window_TrainOnly_byP(fname, valid_percent, test_percent, train_percent):
     if valid_percent + test_percent > 0.6:
-        print('the percent you select for val/lr0.001_10neg are too high')
+        print('the percent you select for val/test are too high')
         return None
     valid_start = 1 - valid_percent - test_percent
     test_start = 1 - test_percent
@@ -773,7 +913,7 @@ def data_partition_window_TrainOnly_byP(fname, valid_percent, test_percent, trai
     return [user_train, user_train_seq, user_valid, user_test, usernum, itemnum, samplenum]
 
 
-# # train/val/lr0.001_10neg data generation
+# # train/val/test data generation
 # def data_partition(fname):
 #     usernum = 0
 #     itemnum = 0
@@ -807,7 +947,7 @@ def data_partition_window_TrainOnly_byP(fname, valid_percent, test_percent, trai
 
 
 # TODO: merge evaluate functions for test and val set
-# evaluate on lr0.001_10neg set
+# evaluate on test set
 # def evaluate(model, dataset, args):
 #     [train, valid, test, usernum, itemnum] = copy.deepcopy(dataset)
 #     NDCG = 0.0
@@ -914,8 +1054,8 @@ def data_partition_window_TrainOnly_byP(fname, valid_percent, test_percent, trai
 
 ## (Recall@k, P90 Coverage)
 # def evaluate_window_valid(model, dataset, dataset_window, args):
-#     [train, valid, lr0.001_10neg, usernum, itemnum] = copy.deepcopy(dataset)
-#     [_, train, valid, lr0.001_10neg, _, itemnum, sample_num] = copy.deepcopy(dataset_window)
+#     [train, valid, test, usernum, itemnum] = copy.deepcopy(dataset)
+#     [_, train, valid, test, _, itemnum, sample_num] = copy.deepcopy(dataset_window)
 #     Recall = 0.0
 #     Recall_U = 0.0
 #     coverage_list = []
@@ -981,8 +1121,8 @@ def data_partition_window_TrainOnly_byP(fname, valid_percent, test_percent, trai
 #
 #
 # def evaluate_window_test(model, dataset, dataset_window, args):
-#     [train, valid, lr0.001_10neg, usernum, itemnum] = copy.deepcopy(dataset)
-#     [_, train, valid, lr0.001_10neg, _, itemnum, sample_num] = copy.deepcopy(dataset_window)
+#     [train, valid, test, usernum, itemnum] = copy.deepcopy(dataset)
+#     [_, train, valid, test, _, itemnum, sample_num] = copy.deepcopy(dataset_window)
 #     Recall = 0.0
 #     Recall_U = 0.0
 #     coverage_list = []
@@ -994,7 +1134,7 @@ def data_partition_window_TrainOnly_byP(fname, valid_percent, test_percent, trai
 #     sample_idx_tensor = torch.tensor(sample_idx).to(args.device)
 #     users = range(1, usernum + 1)
 #     for u in users:
-#         if len(train[u]) < 1 or len(lr0.001_10neg[u]) < 1: continue
+#         if len(train[u]) < 1 or len(test[u]) < 1: continue
 #         seq = np.zeros([args.maxlen], dtype=np.int32)
 #         idx = args.maxlen - 1
 #         for i in reversed(train[u] + valid[u]):
@@ -1008,8 +1148,8 @@ def data_partition_window_TrainOnly_byP(fname, valid_percent, test_percent, trai
 #         rated = set(train[u]+valid[u])
 #         rated.add(0)
 #         # ground truth item
-#         ground_truth_idx = lr0.001_10neg[u]
-#         test_num = len(lr0.001_10neg[u])
+#         ground_truth_idx = test[u]
+#         test_num = len(test[u])
 #         # collect all indexes, which needs to process on
 #         process_idx = ground_truth_idx + sample_idx
 #         predictions = -model.predict(*[np.array(l) for l in [[u], [seq], process_idx]])[0]
@@ -1195,6 +1335,64 @@ def evaluate_window(model, dataset, args, eval_type='valid'):
         for _ in range(sample_nums):
             t = np.random.randint(1, itemnum + 1)
             while t in rated: t = np.random.randint(1, itemnum + 1)
+            neg.append(t)
+        target_num = len(target_seq)
+        item_idx = target_seq + neg
+        predictions = -model.predict(*[np.array(l) for l in [[u], [seq], item_idx]])[0]
+        # target distance
+        target_ds = predictions[:target_num]
+        # sampled results
+        sample_d = predictions[target_num:]
+        for target_d in target_ds:
+            bool_tensor = target_d >= sample_d
+            count = torch.sum(bool_tensor).item()
+            if count < 10:
+                Recall_U += 1
+        Recall_U = Recall_U / target_num
+        Recall += Recall_U
+        Recall_U = 0
+        # take the coverage@10 for all users
+        valid_user += 1
+        if valid_user % 100 == 0:
+            print('.', end="")
+            sys.stdout.flush()
+    return Recall / valid_user, 0.66
+
+
+def evaluate_window_byT(model, dataset, args, eval_type='valid'):
+    [user_input, user_target, usernum, itemnum, _, valid_users, test_users] = dataset
+    Recall = 0.0
+    Recall_U = 0.0
+    valid_user = 0.0
+    sample_nums = 500
+    if eval_type == 'valid':
+        users = valid_users
+    elif eval_type == 'test':
+        users = test_users
+    else:
+        users = None
+        print('Unknown Evaluation')
+        quit()
+    for u in users:
+        input_seq = user_input[u]
+        target_seq = user_target[u]
+        if len(input_seq) < 1 or len(target_seq) < 1:
+            continue
+        seq = np.zeros([args.maxlen], dtype=np.int32)
+        idx = args.maxlen - 1
+        for i in reversed(input_seq):
+            # fill the input sequence from the list tail
+            seq[idx] = i
+            idx -= 1
+            if idx == -1:
+                break
+        rated = set(input_seq)
+        rated.add(0)
+        neg = []
+        for _ in range(sample_nums):
+            t = np.random.randint(1, itemnum + 1)
+            while t in rated:
+                t = np.random.randint(1, itemnum + 1)
             neg.append(t)
         target_num = len(target_seq)
         item_idx = target_seq + neg
