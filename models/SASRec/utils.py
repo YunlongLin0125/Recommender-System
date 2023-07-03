@@ -80,7 +80,6 @@ def sample_function_input_target(user_train, train_target, usernum, itemnum,
         if len(target_seq) < sample_actions:
             target_seq = random.choices(target_seq, k=sample_actions)
         ts = set(user_train[user] + target_seq)
-
         if args.model == ALL_ACTION:
             num_pos = len(target_seq)
         elif args.model == DENSE_ALL_ACTION:
@@ -580,6 +579,41 @@ class WarpSamplerInputTarget(object):
 #         for p in self.processors:
 #             p.terminate()
 #             p.join()
+
+def data_partition_window_InputTarget_byT(f_train, f_target):
+    usernum = 0
+    itemnum = 0
+    user_input = defaultdict(list)
+    user_target = defaultdict(list)
+    train_split = 0.7
+    valid_split = 0.85
+    f = open('data/%s.txt' % f_train, 'r')
+    # read from each line
+    for line in f:
+        u, i = line.rstrip().split(' ')
+        u = int(u)
+        i = int(i)
+        usernum = max(u, usernum)
+        itemnum = max(i, itemnum)
+        user_input[u].append(i)
+        # count user and items
+    f = open('data/%s.txt' % f_target, 'r')
+    # read from each line
+    for line in f:
+        u, i = line.rstrip().split(' ')
+        u = int(u)
+        i = int(i)
+        itemnum = max(i, itemnum)
+        user_target[u].append(i)
+        # count user and items
+    users = list(user_input.keys())
+    random.shuffle(users)
+    # Split the keys into train, valid, test
+    train_users = users[:int(usernum * train_split)]
+    valid_users = users[int(usernum * train_split):int(usernum * valid_split)]
+    test_users = users[int(usernum * valid_split):]
+    return [user_input, user_target, usernum, itemnum, train_users, valid_users, test_users]
+
 
 
 def data_partition_window_InputTarget_byP(fname, valid_percent, test_percent, train_percent):
