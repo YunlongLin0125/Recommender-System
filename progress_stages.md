@@ -104,6 +104,8 @@ what fraction of the index of 1M Pins accounts for 90% of the top 10 retrieved r
 5. PopRec model
 ```
 
+# Week 2
+
 ## 614 (Wed.)
 
 ```
@@ -136,14 +138,14 @@ what fraction of the index of 1M Pins accounts for 90% of the top 10 retrieved r
 2. prepare for the presentation slides (4 training objectives/ Results Analysis)
 ```
 
+# Week 3
+
 ## 621 (Wed.)
 
 ```
 1. Code refactor
 2. Change the loss function (potentially)
 ```
-
-
 
 ## 622 (Thur.)
 
@@ -170,10 +172,39 @@ what fraction of the index of 1M Pins accounts for 90% of the top 10 retrieved r
 6. Experiments(new models on ml-1m with sampled softmax loss)
 ```
 
+# Week 4
+
 ## 628 (Wed.)
 
 ```
 1. improve the model using teammate's method sampling strategy (change the train_target window)
-2. try something transfer learning, item embedding for 1 model, 1 model for the prediction progress.
+2. try something transfer learning, item embedding for 1 model, 1 model for the prediction progress (other parameters).
+## if the transfer learning still does not work. Need to check the implementation.
+```
+
+## 630 (Fri.)
+
+```
+1. Tried some models with transfer learning, the model is still unexpected.
+2. Recheck the training objective of each model, make sure each model is trained as expected.
+```
+
+
+
+## 701 (Sat.)
+
+```
+1. RetailRocket has some positive results (only all action improve the normal sasrec with frozen item embedding)
+2. The reason for this case: percentage window has more positive connections for the prediction parameters.
+3. Assumption: If we change the percentage window to temporal window, Things will be better,
+```
+
+
+
+## 703 （Mon.）
+
+```
+1. Try ML-20M.
+2. prepare slides
 ```
 

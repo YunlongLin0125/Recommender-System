@@ -31,7 +31,7 @@ def sample_function_train(user_train, usernum, itemnum, batch_size, maxlen, resu
             user = np.random.randint(1, usernum + 1)
         nxt = user_train[user][-1]
         idx = maxlen - 1
-        num_negs = 10
+        num_negs = 1
         ts = set(user_train[user])
         seq = np.zeros([maxlen], dtype=np.int32)
         pos = np.zeros([maxlen], dtype=np.int32)

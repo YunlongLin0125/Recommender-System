@@ -1,6 +1,3 @@
-datasets/ml-latest-small/
-datasets/Retailrocket/
-datasets/ml-1m
 /models/GRU4Rec/
 /models/GRU4REC-pytorch/checkpoint/
 /models/GRU4REC-pytorch/data/yoochoose-data/
@@ -30,3 +27,5 @@ datasets/ml-1m
 
 /week1/scripts.txt
 /week1/next_steps.txt
+/datasets/
+/models/SASRec/data/processed/ml-20m.txt

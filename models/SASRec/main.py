@@ -57,6 +57,7 @@ parser.add_argument('--window_predictor', default=False, type=str2bool)
 parser.add_argument('--sas_window_eval', default=False, type=str2bool)
 parser.add_argument('--window_eval', default=True, type=str2bool)
 parser.add_argument('--eval_epoch', default=20, type=int)
+parser.add_argument('--frozen_item', default=False, type=str2bool)
 
 args = parser.parse_args()
 # dataset = data_partition(args.dataset)data
@@ -207,8 +208,26 @@ if __name__ == '__main__':
 
     # this fails embedding init 'Embedding' object has no attribute 'dim'
     # model.apply(torch.nn.init.xavier_uniform_)
-
+    # Transfer learning framework
+    if args.frozen_item:
+        source_model = SASRecSampledLoss(usernum, itemnum, args).to(args.device)  # This is your source model.
+        if 'ml-1m' in args.dataset:
+            source_model.load_state_dict(torch.load('test/ml-1m/item_emb/lr0.001/normal_sasrec.epoch=261.lr=0.001'
+                                                    '.layer=2.head=1.hidden=50.maxlen=200.pth'))
+        elif 'retailrocket' in args.dataset:
+            source_model.load_state_dict(torch.load('test/retailrocket/item_emb/normal_sasrec.epoch=61.lr=0.001.layer=2'
+                                                    '.head=1.hidden=50.maxlen=200.pth'))
+        # map_location=torch.device(args.device)
+        item_emb_param = source_model.item_emb.weight.data.clone()
+        model.item_emb.weight.data = item_emb_param
+        for param in model.item_emb.parameters():
+            param.requires_grad = False
+    #
     model.train()  # enable model training
+    t_valid = evaluate_window(model, dataset, args, eval_type='valid')
+    t_test = evaluate_window(model, dataset, args, eval_type='test')
+    f.write(str(t_valid) + ' ' + str(t_test) + '\n')
+
     epoch_start_idx = 1
     if args.state_dict_path is not None:
         try:
@@ -273,7 +292,6 @@ if __name__ == '__main__':
                     # select from no padding
                     loss = bce_criterion(pos_logits[indices], pos_labels[indices])
                     loss += bce_criterion(neg_logits[indices], neg_labels[indices])
-
                 for param in model.item_emb.parameters(): loss += args.l2_emb * torch.norm(param)
                 loss.backward()
                 adam_optimizer.step()
@@ -295,15 +313,23 @@ if __name__ == '__main__':
                 # pos_logits.shape = [batch_size, sequence_length]
                 # neg_logits.shape = [batch_size, sequence_length, num_negs]
                 if args.model not in [NORMAL_SASREC, SASREC_SAMPLED, DENSE_ALL_ACTION]:
-                    # have more than one pos each pos
+                    # num_pos >=1, num_negs
                     softmax_denominator = torch.sum(torch.exp(neg_logits), dim=-1).unsqueeze(-1) + torch.exp(pos_logits)
+                    softmax_denominator = torch.log(softmax_denominator)
+                    loss = -pos_logits + softmax_denominator
+                    # softmax_denominator = torch.sum(torch.exp(neg_logits), dim=-1).unsqueeze(-1) + torch.exp(pos_logits)
+                    # loss = - torch.log(torch.exp(pos_logits) / softmax_denominator)
+                    # torch.sum(torch.exp(neg_logits), dim=-1).shape = [batch_size, seq_len]
+                    # torch.exp(pos_logits).shape = [batch_size, seq_len, num_pos]
                     # softmax_denominator.shape = [batch_size, num_pos]
-                    loss = - torch.log(torch.exp(pos_logits) / softmax_denominator)
-                    # loss = -pos_logits + softmax_denominator
-                else:
+                    # avoid overflow and underflow
+
+                else:  # NORMAL_SASREC, SASREC_SAMPLED, DENSE_ALL_ACTION
+                    # num_pos = 1, num_negs
                     logits = torch.cat([pos_logits.unsqueeze(-1), neg_logits], dim=-1)
                     # logits.shape = [batch_size, sequence_length, 1 + num_negs]
                     softmax_denominator = torch.logsumexp(logits, dim=-1)
+                    # loss = - torch.log(torch.exp(pos_logits) / softmax_denominator)
                     loss = -pos_logits + softmax_denominator
                 adam_optimizer.zero_grad()
                 # In case of multiple negative samples, use view to match dimensions
