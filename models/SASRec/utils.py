@@ -591,7 +591,6 @@ def data_partition_window_InputTarget_byP(fname, valid_percent, test_percent, tr
     train_start = 1 - train_percent
     usernum = 0
     itemnum = 0
-    sample_actions = 32
     User = defaultdict(list)
     user_input = {}
     user_target = {}
