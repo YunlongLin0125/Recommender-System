@@ -217,6 +217,7 @@ if __name__ == '__main__':
         elif 'retailrocket' in args.dataset:
             source_model.load_state_dict(torch.load('test/retailrocket/item_emb/normal_sasrec.epoch=61.lr=0.001.layer=2'
                                                     '.head=1.hidden=50.maxlen=200.pth'))
+
         # map_location=torch.device(args.device)
         item_emb_param = source_model.item_emb.weight.data.clone()
         model.item_emb.weight.data = item_emb_param
@@ -322,10 +323,7 @@ if __name__ == '__main__':
                     # torch.sum(torch.exp(neg_logits), dim=-1).shape = [batch_size, seq_len]
                     # torch.exp(pos_logits).shape = [batch_size, seq_len, num_pos]
                     # softmax_denominator.shape = [batch_size, num_pos]
-                    # avoid overflow and underflow
-
-                else:  # NORMAL_SASREC, SASREC_SAMPLED, DENSE_ALL_ACTION
-                    # num_pos = 1, num_negs
+                else: # NORMAL_SASREC, SASREC_SAMPLED, DENSE_ALL_ACTION
                     logits = torch.cat([pos_logits.unsqueeze(-1), neg_logits], dim=-1)
                     # logits.shape = [batch_size, sequence_length, 1 + num_negs]
                     softmax_denominator = torch.logsumexp(logits, dim=-1)
