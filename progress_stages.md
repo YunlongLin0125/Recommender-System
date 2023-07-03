@@ -183,7 +183,7 @@ what fraction of the index of 1M Pins accounts for 90% of the top 10 retrieved r
 <<<<<<< HEAD
 ```
 
-### 629 (Fri.)
+## 629 (Fri.)
 
 ```
 1. Tried some models with transfer learning, the model is still unexpected.
@@ -218,5 +218,7 @@ what fraction of the index of 1M Pins accounts for 90% of the top 10 retrieved r
 =======
 >>>>>>> 2cf508e01e0fd16e0badec87e959cbcd0b7d5c19
 ```
+
+# Week 5
 
 
