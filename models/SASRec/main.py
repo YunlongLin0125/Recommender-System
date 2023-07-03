@@ -17,6 +17,7 @@ NORMAL_SASREC = 'normal_sasrec'
 SASREC_SAMPLED = 'sasrec_sampled'
 DENSE_ALL_PLUS = 'dense_all_action_plus'
 DENSE_ALL_PLUS_PLUS = 'dense_all_action_plus_plus'
+ALL_ACTION_SAMPLED = 'all_action_sampled'
 INTEGRATED = 'integrated'
 
 BCE = 'bce'

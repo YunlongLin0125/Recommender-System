@@ -727,11 +727,6 @@ def data_partition_window_TrainOnly_byP(fname, valid_percent, test_percent, trai
                 input_seq = train_seq[:split_index]
                 target_seq = train_seq[split_index:]
                 ## we randomly sample up to 32 actions per user in this 𝐾 day time window. (PinnerFormer)
-
-                target_seq = random.choices(target_seq, k=sample_actions)
-                # if len(target_seq) > 32:
-                #     target_seq = random.sample(target_seq, 32)
-
                 for target in target_seq:
                     count += 1
                     user_train[count] = input_seq + [target]
