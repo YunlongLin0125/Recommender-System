@@ -209,8 +209,7 @@ what fraction of the index of 1M Pins accounts for 90% of the top 10 retrieved r
 ```
 
 
-
-## 703 （Mon.）
+## 703 (Mon.)
 ```
 1. Try ML-20M.
 2. prepare slides
@@ -221,6 +220,14 @@ what fraction of the index of 1M Pins accounts for 90% of the top 10 retrieved r
 ## 704 (Tue.)
 ```
 1. check the loss function for all models. (some problems to avoid the influence of pad-value)
+```
+
+## 705 (Wed.)
+```
+1. Fix the problem for all of the loss function (avoid padding sequence position influence).
+Except all action prediction (No need to mask)
+2. Run all proposed model get the experiments result
+3. Try fine tuning (smaller lr for item embedding)
 ```
 
 

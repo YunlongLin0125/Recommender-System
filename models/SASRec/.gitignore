@@ -2,6 +2,5 @@
 __pycache__/
 ml-1m_default/
 /processed/ml-1m_all_action/
-/test/
 /data/processed/ml-20m_target.txt
 /data/processed/ml-20m_train.txt

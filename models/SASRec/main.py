@@ -17,7 +17,6 @@ NORMAL_SASREC = 'normal_sasrec'
 SASREC_SAMPLED = 'sasrec_sampled'
 DENSE_ALL_PLUS = 'dense_all_action_plus'
 DENSE_ALL_PLUS_PLUS = 'dense_all_action_plus_plus'
-ALL_ACTION_SAMPLED = 'all_action_sampled'
 INTEGRATED = 'integrated'
 
 BCE = 'bce'
@@ -54,12 +53,12 @@ parser.add_argument('--device', default='cpu', type=str)
 parser.add_argument('--inference_only', default=False, type=str2bool)
 parser.add_argument('--state_dict_path', default=None, type=str)
 # parser.add_argument('--window_size', default=7, type=int)
-parser.add_argument('--window_predictor', default=False, type=str2bool)
-parser.add_argument('--sas_window_eval', default=False, type=str2bool)
 parser.add_argument('--window_eval', default=True, type=str2bool)
 parser.add_argument('--eval_epoch', default=20, type=int)
+parser.add_argument('--load_emb', default=False, type=str2bool)
 parser.add_argument('--frozen_item', default=False, type=str2bool)
 parser.add_argument('--temporal', default=False, type=str2bool)
+parser.add_argument('--finetune', default=False, type=str2bool)
 
 args = parser.parse_args()
 # dataset = data_partition(args.dataset)data
@@ -70,15 +69,42 @@ with open(os.path.join(args.log_dir, 'args.txt'), 'w') as f:
     f.write('\n'.join([str(k) + ',' + str(v) for k, v in sorted(vars(args).items(), key=lambda x: x[0])]))
 f.close()
 
+
+def connect_input_target(user_input, user_target, train_users):
+    count = 0
+    user_train = {}
+    for u in train_users:
+        u_input = user_input[u]
+        u_target = user_target[u]
+        for t in u_target:
+            count += 1
+            user_train[count] = u_input + [t]
+    return user_train, count
+
+
 if __name__ == '__main__':
     if args.temporal:
         dataset = data_partition_window_InputTarget_byT(args.dataset + '_train', args.dataset + '_target')
         [user_input, user_target, usernum, itemnum, train_users, valid_users, test_users] = dataset
-        sampler = WarpSamplerInputTarget_byT(user_input, user_target, train_users, usernum, itemnum, args,
-                                             batch_size=args.batch_size, maxlen=args.maxlen, n_workers=3)
-        dataset = dataset
-        sample_train = user_input
-        sample_num = usernum
+        if args.model == SASREC_SAMPLED:
+            sample_train, sample_num = connect_input_target(user_input, user_target, train_users)
+            sampler = WarpSamplerTrainOnly(sample_train, sample_num, itemnum, args, batch_size=args.batch_size,
+                                           maxlen=args.maxlen, n_workers=3)
+            dataset = dataset
+            sample_train = sample_train
+            sample_num = sample_num
+
+        else:
+            sampler = WarpSamplerInputTarget_byT(user_input, user_target, train_users, usernum, itemnum, args,
+                                                 batch_size=args.batch_size, maxlen=args.maxlen, n_workers=3)
+            dataset = dataset
+            sample_train = user_input
+            sample_num = usernum
+            target_len = 0
+            for u in user_target:
+                target_len += len(user_target[u])
+            print('average sequence length for target window: %.2f' % (target_len / len(user_target)))
+
     else:
         if args.model == NORMAL_SASREC:  # normal sasrec but trained on the window train sequence
             dataset_window = data_partition_window_TrainOnly_byP(args.dataset, valid_percent=0.1, test_percent=0.1,
@@ -108,7 +134,8 @@ if __name__ == '__main__':
             [user_input, user_target, user_train, user_valid, user_test, usernum, itemnum] = dataset_all_action
             # sampler = WarpSamplerAllAction(user_input, user_target, usernum, itemnum, batch_size=args.batch_size,
             #                                maxlen=args.maxlen, n_workers=3)
-            sampler = WarpSamplerInputTarget(user_input, user_target, usernum, itemnum, args, batch_size=args.batch_size,
+            sampler = WarpSamplerInputTarget(user_input, user_target, usernum, itemnum, args,
+                                             batch_size=args.batch_size,
                                              maxlen=args.maxlen, n_workers=3)
             dataset = dataset_all_action
             sample_train = user_input
@@ -118,7 +145,8 @@ if __name__ == '__main__':
             dataset_dense_all = data_partition_window_InputTarget_byP(args.dataset, valid_percent=0.1,
                                                                       test_percent=0.1, train_percent=0.1)
             [user_input, user_target, user_train, user_valid, user_test, usernum, itemnum] = dataset_dense_all
-            sampler = WarpSamplerInputTarget(user_input, user_target, usernum, itemnum, args, batch_size=args.batch_size,
+            sampler = WarpSamplerInputTarget(user_input, user_target, usernum, itemnum, args,
+                                             batch_size=args.batch_size,
                                              maxlen=args.maxlen, n_workers=3)
             dataset = dataset_dense_all
             sample_train = user_input
@@ -130,7 +158,8 @@ if __name__ == '__main__':
             [user_input, user_target, user_train, user_valid, user_test, usernum, itemnum] = dataset_dense_all
             # sampler = WarpSamplerDenseAllPlus(user_input, user_target, usernum, itemnum, batch_size=args.batch_size,
             #                                   maxlen=args.maxlen, n_workers=3)
-            sampler = WarpSamplerInputTarget(user_input, user_target, usernum, itemnum, args, batch_size=args.batch_size,
+            sampler = WarpSamplerInputTarget(user_input, user_target, usernum, itemnum, args,
+                                             batch_size=args.batch_size,
                                              maxlen=args.maxlen, n_workers=3)
             dataset = dataset_dense_all
             sample_train = user_input
@@ -142,7 +171,8 @@ if __name__ == '__main__':
             [user_input, user_target, user_train, user_valid, user_test, usernum, itemnum] = dataset_dense_all
             # sampler = WarpSamplerIntegrated(user_input, user_target, usernum, itemnum, batch_size=args.batch_size,
             #                                 maxlen=args.maxlen, n_workers=3)
-            sampler = WarpSamplerInputTarget(user_input, user_target, usernum, itemnum, args, batch_size=args.batch_size,
+            sampler = WarpSamplerInputTarget(user_input, user_target, usernum, itemnum, args,
+                                             batch_size=args.batch_size,
                                              maxlen=args.maxlen, n_workers=3)
             dataset = dataset_dense_all
             sample_train = user_input
@@ -152,9 +182,10 @@ if __name__ == '__main__':
             dataset_dense_all = data_partition_window_InputTarget_byP(args.dataset, valid_percent=0.1,
                                                                       test_percent=0.1, train_percent=0.1)
             [user_input, user_target, user_train, user_valid, user_test, usernum, itemnum] = dataset_dense_all
-            # sampler = WarpSamplerDenseAllPlusPlus(user_input, user_target, usernum, itemnum, batch_size=args.batch_size,
-            #                                       maxlen=args.maxlen, n_workers=3)
-            sampler = WarpSamplerInputTarget(user_input, user_target, usernum, itemnum, args, batch_size=args.batch_size,
+            # sampler = WarpSamplerDenseAllPlusPlus(user_input, user_target, usernum, itemnum,
+            # batch_size=args.batch_size, maxlen=args.maxlen, n_workers=3)
+            sampler = WarpSamplerInputTarget(user_input, user_target, usernum, itemnum, args,
+                                             batch_size=args.batch_size,
                                              maxlen=args.maxlen, n_workers=3)
             dataset = dataset_dense_all
             sample_train = user_input
@@ -166,7 +197,8 @@ if __name__ == '__main__':
             dataset_dense_all = data_partition_window_InputTarget_byP(args.dataset, valid_percent=0.1,
                                                                       test_percent=0.1, train_percent=0.1)
             [user_input, user_target, user_train, user_valid, user_test, usernum, itemnum] = dataset_dense_all
-            sampler = WarpSamplerInputTarget(user_input, user_target, usernum, itemnum, args, batch_size=args.batch_size,
+            sampler = WarpSamplerInputTarget(user_input, user_target, usernum, itemnum, args,
+                                             batch_size=args.batch_size,
                                              maxlen=args.maxlen, n_workers=3)
             dataset = dataset_dense_all
             sample_train = user_input
@@ -176,7 +208,7 @@ if __name__ == '__main__':
     cc = 0.0
     for u in sample_train:
         cc += len(sample_train[u])
-    print('average sequence length: %.2f' % (cc / len(sample_train)))
+    print('average sequence length for input sequence: %.2f' % (cc / len(sample_train)))
     print('number of training data: %.2f' % len(sample_train))
     print('number of items: %.2f' % itemnum)
 
@@ -217,7 +249,7 @@ if __name__ == '__main__':
     # this fails embedding init 'Embedding' object has no attribute 'dim'
     # model.apply(torch.nn.init.xavier_uniform_)
     # Transfer learning framework
-    if args.frozen_item:
+    if args.load_emb:
         source_model = SASRecSampledLoss(usernum, itemnum, args).to(args.device)  # This is your source model.
         if 'ml-1m' in args.dataset:
             source_model.load_state_dict(torch.load('test/ml-1m/item_emb/lr0.001/normal_sasrec.epoch=261.lr=0.001'
@@ -228,20 +260,20 @@ if __name__ == '__main__':
         elif 'ml-20m' in args.dataset:
             source_model.load_state_dict(torch.load('test/ml-20m/item_emb/normal_sasrec.epoch=50.lr=0.001.layer=2'
                                                     '.head=1.hidden=50.maxlen=200.pth'))
-        # map_location=torch.device(args.device)
+
         item_emb_param = source_model.item_emb.weight.data.clone()
         model.item_emb.weight.data = item_emb_param
+        # if not args.temporal:
+        #     t_valid = evaluate_window(model, dataset, args, eval_type='valid')
+        #     t_test = evaluate_window(model, dataset, args, eval_type='test')
+        # else:
+        #     t_valid = evaluate_window_byT(model, dataset, args, eval_type='valid')
+        #     t_test = evaluate_window_byT(model, dataset, args, eval_type='test')
+        # f.write(str(t_valid) + ' ' + str(t_test) + '\n')
+    if args.frozen_item:
         for param in model.item_emb.parameters():
             param.requires_grad = False
-        if not args.temporal:
-            t_valid = evaluate_window(model, dataset, args, eval_type='valid')
-            t_test = evaluate_window(model, dataset, args, eval_type='test')
-        else:
-            t_valid = evaluate_window_byT(model, dataset, args, eval_type='valid')
-            t_test = evaluate_window_byT(model, dataset, args, eval_type='test')
-        f.write(str(t_valid) + ' ' + str(t_test) + '\n')
 
-    #
     model.train()  # enable model training
     epoch_start_idx = 1
     if args.state_dict_path is not None:
@@ -276,24 +308,35 @@ if __name__ == '__main__':
     # https://github.com/NVIDIA/pix2pixHD/issues/9 how could an old bug appear again...
     bce_criterion = torch.nn.BCEWithLogitsLoss()  # torch.nn.BCELoss()
     # going to change the loss function here.
-    adam_optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, betas=(0.9, 0.98))
+    if args.finetune:
+        item_emb_lr = args.lr * 1e-2
+        # Separate the item embeddings parameters
+        item_emb_parameters = model.item_emb.parameters()
+        # Get all other parameters of the model
+        other_parameters = [param for name, param in model.named_parameters() if 'item_emb' not in name]
 
+        adam_optimizer = torch.optim.Adam([
+            {'params': item_emb_parameters, 'lr': item_emb_lr},
+            {'params': other_parameters, 'lr': args.lr}
+        ], betas=(0.9, 0.98))
+    else:
+        adam_optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, betas=(0.9, 0.98))
     T = 0.0
     t0 = time.time()
 
     for epoch in range(epoch_start_idx, args.num_epochs + 1):
-        if args.inference_only: break  # just to decrease identition
+        if args.inference_only:
+            break  # just to decrease identition
         # BCE loss
         if args.loss_function == BCE:
-
             for step in range(num_batch):  # tqdm(range(num_batch), total=num_batch, ncols=70, leave=False, unit='b'):
                 u, seq, pos, neg = sampler.next_batch()  # tuples to ndarray
                 u, seq, pos, neg = np.array(u), np.array(seq), np.array(pos), np.array(neg)
                 pos_logits, neg_logits = model(u, seq, pos, neg)
                 # pos_logits.shape = (batch_size, num_targets)
                 # neg_logits.shape = (batch_size, num_negs)
-                pos_labels, neg_labels = torch.ones(pos_logits.shape, device=args.device), torch.zeros(neg_logits.shape,
-                                                                                                       device=args.device)
+                pos_labels, neg_labels = torch.ones(pos_logits.shape, device=args.device), \
+                                         torch.zeros(neg_logits.shape, device=args.device)
                 # print("\neye ball check raw_logits:"); print(pos_logits); print(neg_logits)
                 # check pos_logits > 0, neg_logits < 0
                 adam_optimizer.zero_grad()
@@ -306,7 +349,6 @@ if __name__ == '__main__':
                     loss = bce_criterion(pos_logits, pos_labels)
                     loss += bce_criterion(neg_logits, neg_labels)
                 else:
-                    # dense all action train and normal train (same)
                     indices = np.where(pos != 0)
                     # select from no padding
                     loss = bce_criterion(pos_logits[indices], pos_labels[indices])
@@ -321,34 +363,38 @@ if __name__ == '__main__':
             for step in range(num_batch):  # tqdm(range(num_batch), total=num_batch, ncols=70, leave=False, unit='b'):
                 u, seq, pos, neg = sampler.next_batch()  # tuples to ndarray
                 u, seq, pos, neg = np.array(u), np.array(seq), np.array(pos), np.array(neg)
+                # pos.shape = [batch_size, seq_len, num_pos]
+                # neg.shape = [batch_size, seq_len, num_neg]
+                # neg.shape = [batch_size, seq_len]
                 pos_logits, neg_logits = model(u, seq, pos, neg)
-
-                # if model == normal_sasrec
-                # pos_logits.shape = [batch_size, sequence_length]
-                # neg_logits.shape = [batch_size, sequence_length, num_negs]
-                # if model == all_action
-                # pos_logits.shape = [batch_size, num_targets]
-                # neg_logits.shape = [batch_size, num_negs]
-                # if model == dense_all_action
-                # pos_logits.shape = [batch_size, sequence_length]
-                # neg_logits.shape = [batch_size, sequence_length, num_negs]
+                adam_optimizer.zero_grad()
                 if args.model not in [NORMAL_SASREC, SASREC_SAMPLED, DENSE_ALL_ACTION]:
-                    # num_pos >=1, num_negs
-                    softmax_denominator = torch.sum(torch.exp(neg_logits), dim=-1).unsqueeze(-1) + torch.exp(pos_logits)
+                    if args.model != ALL_ACTION:
+                        mask = (seq != 0)  # mask the padding value
+                        # mask.shape = [batch_size, seq_len]
+                        # pos_logits.shape = [batch_size, seq_len, num_pos]
+                        # neg_logits.shape = [batch_size, seq_len, num_neg]
+                        pos_logits = pos_logits[mask]
+                        neg_logits = neg_logits[mask]
+                        # pos_logits.shape = [selects, num_pos]
+                        # neg_logits.shape = [selects, num_neg]
+                    softmax_denominator = \
+                        torch.sum(torch.exp(neg_logits), dim=-1).unsqueeze(-1) + torch.exp(pos_logits)
                     softmax_denominator = torch.log(softmax_denominator)
                     loss = -pos_logits + softmax_denominator
-                    # softmax_denominator = torch.sum(torch.exp(neg_logits), dim=-1).unsqueeze(-1) + torch.exp(pos_logits)
-                    # loss = - torch.log(torch.exp(pos_logits) / softmax_denominator)
-                    # torch.sum(torch.exp(neg_logits), dim=-1).shape = [batch_size, seq_len]
-                    # torch.exp(pos_logits).shape = [batch_size, seq_len, num_pos]
-                    # softmax_denominator.shape = [batch_size, num_pos]
-                else: # NORMAL_SASREC, SASREC_SAMPLED, DENSE_ALL_ACTION
-                    logits = torch.cat([pos_logits.unsqueeze(-1), neg_logits], dim=-1)
-                    # logits.shape = [batch_size, sequence_length, 1 + num_negs]
-                    softmax_denominator = torch.logsumexp(logits, dim=-1)
-                    # loss = - torch.log(torch.exp(pos_logits) / softmax_denominator)
+                else:
+                    # num_pos = 1, num_negs >= 1
+                    mask = (seq != 0)  # mask the padding value
+                    # mask.shape = [batch_size, seq_len]
+                    # pos_logits.shape = [batch_size, seq_len]
+                    # neg_logits.shape = [batch_size, seq_len, num_negs]
+                    pos_logits = pos_logits[mask]
+                    neg_logits = neg_logits[mask]
+                    # pos_logits.shape = [selects]
+                    # neg_logits.shape = [selects, num_negs]
+                    softmax_denominator = torch.sum(torch.exp(neg_logits), dim=-1) + torch.exp(pos_logits)
+                    softmax_denominator = torch.log(softmax_denominator)
                     loss = -pos_logits + softmax_denominator
-                adam_optimizer.zero_grad()
                 # In case of multiple negative samples, use view to match dimensions
                 # normal training
                 for param in model.item_emb.parameters():
@@ -399,10 +445,9 @@ if __name__ == '__main__':
                                  args.hidden_units,
                                  args.maxlen)
             torch.save(model.state_dict(), os.path.join(folder, fname))
-
-    f.close()
-    sampler.close()
     print("Done")
     end_time = time.time()
     execution_time = end_time - start_time
-    print("Execution time:", execution_time, "seconds")
+    f.write("Execution time: " + str(execution_time) + "seconds" + '\n')
+    f.close()
+    sampler.close()
