@@ -230,4 +230,10 @@ Except all action prediction (No need to mask)
 3. Try fine tuning (smaller lr for item embedding)
 ```
 
+## 706(Thur.)
+```
+1. refactor the directory to split the percentage window and temporal window.
+2. how to obtain a better item embedding. (? more data beyond the temporal window)
+```
+
 
