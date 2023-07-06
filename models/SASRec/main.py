@@ -40,7 +40,7 @@ parser.add_argument('--loss_function', default=BCE, choices=LOSS_FUNCTIONS, requ
 parser.add_argument('--dataset', required=True)
 parser.add_argument('--log_dir', required=True)  # train_dir
 parser.add_argument('--batch_size', default=128, type=int)
-parser.add_argument('--lr', default=0.001, type=float)
+parser.add_argument('--lr', default=1e-3, type=float)
 # set the learning rate
 parser.add_argument('--maxlen', default=50, type=int)
 parser.add_argument('--hidden_units', default=50, type=int)
@@ -55,9 +55,9 @@ parser.add_argument('--state_dict_path', default=None, type=str)
 # parser.add_argument('--window_size', default=7, type=int)
 parser.add_argument('--window_eval', default=True, type=str2bool)
 parser.add_argument('--eval_epoch', default=20, type=int)
+parser.add_argument('--temporal', default=False, type=str2bool)
 parser.add_argument('--load_emb', default=False, type=str2bool)
 parser.add_argument('--frozen_item', default=False, type=str2bool)
-parser.add_argument('--temporal', default=False, type=str2bool)
 parser.add_argument('--finetune', default=False, type=str2bool)
 
 args = parser.parse_args()
@@ -87,6 +87,7 @@ if __name__ == '__main__':
         dataset = data_partition_window_InputTarget_byT(args.dataset + '_train', args.dataset + '_target')
         [user_input, user_target, usernum, itemnum, train_users, valid_users, test_users] = dataset
         if args.model == SASREC_SAMPLED:
+            # temporal window sasrec sampled model
             sample_train, sample_num = connect_input_target(user_input, user_target, train_users)
             sampler = WarpSamplerTrainOnly(sample_train, sample_num, itemnum, args, batch_size=args.batch_size,
                                            maxlen=args.maxlen, n_workers=3)
@@ -252,14 +253,14 @@ if __name__ == '__main__':
     if args.load_emb:
         source_model = SASRecSampledLoss(usernum, itemnum, args).to(args.device)  # This is your source model.
         if 'ml-1m' in args.dataset:
-            source_model.load_state_dict(torch.load('test/ml-1m/item_emb/lr0.001/normal_sasrec.epoch=261.lr=0.001'
-                                                    '.layer=2.head=1.hidden=50.maxlen=200.pth'))
+            source_model.load_state_dict(torch.load('experiments/percentage/ml-1m/item_emb/lr0.001/normal_sasrec'
+                                                    '.epoch=261.lr=0.001.layer=2.head=1.hidden=50.maxlen=200.pth'))
         elif 'retailrocket' in args.dataset:
-            source_model.load_state_dict(torch.load('test/retailrocket/item_emb/normal_sasrec.epoch=61.lr=0.001.layer=2'
-                                                    '.head=1.hidden=50.maxlen=200.pth'))
+            source_model.load_state_dict(torch.load('experiments/percentage/retailrocket/item_emb/normal_sasrec.epoch'
+                                                    '=61.lr=0.001.layer=2.head=1.hidden=50.maxlen=200.pth'))
         elif 'ml-20m' in args.dataset:
-            source_model.load_state_dict(torch.load('test/ml-20m/item_emb/normal_sasrec.epoch=50.lr=0.001.layer=2'
-                                                    '.head=1.hidden=50.maxlen=200.pth'))
+            source_model.load_state_dict(torch.load('experiments/temporal/ml-20m/item_emb/normal_sasrec.epoch=50.lr=0'
+                                                    '.001.layer=2.head=1.hidden=50.maxlen=200.pth'))
 
         item_emb_param = source_model.item_emb.weight.data.clone()
         model.item_emb.weight.data = item_emb_param
