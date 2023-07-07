@@ -161,7 +161,7 @@ def sample_function_input_target_byT(user_train, train_target, train_ids, usernu
         num_neg = 10
         sample_actions = 16
         target_seq = train_target[user]
-        if args.model == DENSE_ALL_ACTION:
+        if args.model in [DENSE_ALL_ACTION]:
             target_seq = train_target[user]
         else:
             if len(target_seq) > sample_actions:
@@ -173,6 +173,8 @@ def sample_function_input_target_byT(user_train, train_target, train_ids, usernu
             num_pos = len(target_seq)
         elif args.model == NORMAL_SASREC:
             num_pos = 1
+        elif args.model == SASREC_SAMPLED:
+            num_pos = len(target_seq)
         elif args.model == DENSE_ALL_ACTION:
             num_pos = 1
         elif args.model == DENSE_ALL_PLUS:
@@ -219,6 +221,13 @@ def sample_function_input_target_byT(user_train, train_target, train_ids, usernu
                     if nxt != 0:
                         pos[idx] = [nxt] + target_seq
                         neg[idx] = random_neq(1, itemnum + 1, ts, num_neg)
+                # elif args.model == SASREC_SAMPLED:
+                #     if idx == maxlen - 1:
+                #         pos[idx] = target_seq
+                #         neg[idx] = random_neq(1, itemnum + 1, ts, num_neg)
+                #     else:
+                #         pos[idx] = target_seq
+                #         neg[idx] = random_neq(1, itemnum + 1, ts, num_neg)
                 elif args.model == INTEGRATED:
                     if nxt != 0:
                         random_target = random.sample(target_seq, 1)
@@ -228,7 +237,6 @@ def sample_function_input_target_byT(user_train, train_target, train_ids, usernu
                 idx -= 1
                 if idx == -1:
                     break
-
         elif args.model in [NORMAL_SASREC, SASREC_SAMPLED]:
             num_neg = 1
             seq = np.zeros([maxlen], dtype=np.int32)
