@@ -230,10 +230,17 @@ Except all action prediction (No need to mask)
 3. Try fine tuning (smaller lr for item embedding)
 ```
 
-## 706(Thur.)
+## 706 (Thur.)
 ```
 1. refactor the directory to split the percentage window and temporal window.
 2. how to obtain a better item embedding. (? more data beyond the temporal window)
 ```
 
+## 707 (Fri.)
+
+```
+Read → Understand → Implement
+1. read tisasrec, incorparating sasrec with temporal features.
+2. Reproduce tisasrec results.
+```
 
