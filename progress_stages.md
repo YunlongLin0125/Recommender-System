@@ -235,12 +235,18 @@ Except all action prediction (No need to mask)
 1. refactor the directory to split the percentage window and temporal window.
 2. how to obtain a better item embedding. (? more data beyond the temporal window)
 ```
-
+## Time Feature
 ## 707 (Fri.)
 
 ```
-Read → Understand → Implement
+Read → Understand
 1. read tisasrec, incorparating sasrec with temporal features.
 2. Reproduce tisasrec results.
 ```
 
+## 708 (Sat.)
+```
+Understand → Implement
+1. implement TiSASRec window predictor
+2. Expand the architecture to my window predictor
+```

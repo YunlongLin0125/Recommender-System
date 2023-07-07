@@ -6,28 +6,31 @@ from tqdm import tqdm
 from collections import defaultdict
 from multiprocessing import Process, Queue
 
+
 def random_neq(l, r, s):
     t = np.random.randint(l, r)
     while t in s:
         t = np.random.randint(l, r)
     return t
 
+
 def computeRePos(time_seq, time_span):
-    
+    # the reserved timestamp sequence
     size = time_seq.shape[0]
     time_matrix = np.zeros([size, size], dtype=np.int32)
     for i in range(size):
         for j in range(size):
-            span = abs(time_seq[i]-time_seq[j])
-            if span > time_span:
-                time_matrix[i][j] = time_span
-            else:
-                time_matrix[i][j] = span
+            span = abs(time_seq[i] - time_seq[j])
+            # clipped matrix
+            time_matrix[i][j] = min(time_span, span)
+    # return time interval matrix
     return time_matrix
 
+
 def Relation(user_train, usernum, maxlen, time_span):
+    # compute relation matrix
     data_train = dict()
-    for user in tqdm(range(1, usernum+1), desc='Preparing relation matrix'):
+    for user in tqdm(range(1, usernum + 1), desc='Preparing relation matrix'):
         time_seq = np.zeros([maxlen], dtype=np.int32)
         idx = maxlen - 1
         for i in reversed(user_train[user][:-1]):
@@ -35,7 +38,10 @@ def Relation(user_train, usernum, maxlen, time_span):
             idx -= 1
             if idx == -1: break
         data_train[user] = computeRePos(time_seq, time_span)
+        # calculate the relation matrix (time interval matrix
+        # between the items in the sequence) for each user
     return data_train
+
 
 def sample_function(user_train, usernum, itemnum, batch_size, maxlen, relation_matrix, result_queue, SEED):
     def sample(user):
@@ -45,10 +51,11 @@ def sample_function(user_train, usernum, itemnum, batch_size, maxlen, relation_m
         pos = np.zeros([maxlen], dtype=np.int32)
         neg = np.zeros([maxlen], dtype=np.int32)
         nxt = user_train[user][-1][0]
-    
+
         idx = maxlen - 1
-        ts = set(map(lambda x: x[0],user_train[user]))
+        ts = set(map(lambda x: x[0], user_train[user]))
         for i in reversed(user_train[user][:-1]):
+            # i : (item, timestamp)
             seq[idx] = i[0]
             time_seq[idx] = i[1]
             pos[idx] = nxt
@@ -57,7 +64,7 @@ def sample_function(user_train, usernum, itemnum, batch_size, maxlen, relation_m
             idx -= 1
             if idx == -1: break
         time_matrix = relation_matrix[user]
-        return (user, seq, time_seq, time_matrix, pos, neg)
+        return user, seq, time_seq, time_matrix, pos, neg
 
     np.random.seed(SEED)
     while True:
@@ -69,8 +76,9 @@ def sample_function(user_train, usernum, itemnum, batch_size, maxlen, relation_m
 
         result_queue.put(zip(*one_batch))
 
+
 class WarpSampler(object):
-    def __init__(self, User, usernum, itemnum, relation_matrix, batch_size=64, maxlen=10,n_workers=1):
+    def __init__(self, User, usernum, itemnum, relation_matrix, batch_size=64, maxlen=10, n_workers=1):
         self.result_queue = Queue(maxsize=n_workers * 10)
         self.processors = []
         for i in range(n_workers):
@@ -95,18 +103,21 @@ class WarpSampler(object):
             p.terminate()
             p.join()
 
+
 def timeSlice(time_set):
     time_min = min(time_set)
     time_map = dict()
-    for time in time_set: # float as map key?
-        time_map[time] = int(round(float(time-time_min)))
+    for time in time_set:  # float as map key?
+        time_map[time] = int(round(float(time - time_min)))
     return time_map
+
 
 def cleanAndsort(User, time_map):
     User_filted = dict()
     user_set = set()
     item_set = set()
     for user, items in User.items():
+        # u, (i, timestamp)
         user_set.add(user)
         User_filted[user] = items
         for item in items:
@@ -114,33 +125,40 @@ def cleanAndsort(User, time_map):
     user_map = dict()
     item_map = dict()
     for u, user in enumerate(user_set):
-        user_map[user] = u+1
+        user_map[user] = u + 1
     for i, item in enumerate(item_set):
-        item_map[item] = i+1
-    
+        item_map[item] = i + 1
+    # create the map for user and item
     for user, items in User_filted.items():
         User_filted[user] = sorted(items, key=lambda x: x[1])
+        # sorted by timestamp
 
     User_res = dict()
     for user, items in User_filted.items():
         User_res[user_map[user]] = list(map(lambda x: [item_map[x[0]], time_map[x[1]]], items))
-
+    # map the item and timestamp for each user.
+    # map the user id.
     time_max = set()
     for user, items in User_res.items():
         time_list = list(map(lambda x: x[1], items))
+        # get all timestamps
         time_diff = set()
-        for i in range(len(time_list)-1):
-            if time_list[i+1]-time_list[i] != 0:
-                time_diff.add(time_list[i+1]-time_list[i])
-        if len(time_diff)==0:
+        for i in range(len(time_list) - 1):
+            if time_list[i + 1] - time_list[i] != 0:
+                # calculate time interval
+                time_diff.add(time_list[i + 1] - time_list[i])
+        if len(time_diff) == 0:
             time_scale = 1
         else:
             time_scale = min(time_diff)
+            # scale the time
         time_min = min(time_list)
-        User_res[user] = list(map(lambda x: [x[0], int(round((x[1]-time_min)/time_scale)+1)], items))
+        User_res[user] = list(map(lambda x: [x[0], int(round((x[1] - time_min) / time_scale) + 1)], items))
+        # scaled time interval
         time_max.add(max(set(map(lambda x: x[1], User_res[user]))))
-
+        # find the max time stamp for each user
     return User_res, len(user_set), len(item_set), max(time_max)
+
 
 def data_partition(fname):
     usernum = 0
@@ -149,7 +167,7 @@ def data_partition(fname):
     user_train = {}
     user_valid = {}
     user_test = {}
-    
+
     print('Preparing data...')
     f = open('data/%s.txt' % fname, 'r')
     time_set = set()
@@ -163,10 +181,10 @@ def data_partition(fname):
             u, i, timestamp = line.rstrip().split('\t')
         u = int(u)
         i = int(i)
-        user_count[u]+=1
-        item_count[i]+=1
+        user_count[u] += 1
+        item_count[i] += 1
     f.close()
-    f = open('data/%s.txt' % fname, 'r') # try?...ugly data pre-processing code
+    f = open('data/%s.txt' % fname, 'r')  # try?...ugly data pre-processing code
     for line in f:
         try:
             u, i, rating, timestamp = line.rstrip().split('\t')
@@ -175,14 +193,17 @@ def data_partition(fname):
         u = int(u)
         i = int(i)
         timestamp = float(timestamp)
-        if user_count[u]<5 or item_count[i]<5: # hard-coded
+        if user_count[u] < 5 or item_count[i] < 5:  # hard-coded
             continue
         time_set.add(timestamp)
+        # find all timestamps
         User[u].append([i, timestamp])
+        # include the time feature
     f.close()
     time_map = timeSlice(time_set)
+    # get the relevant timestamp rather than absolute
     User, usernum, itemnum, timenum = cleanAndsort(User, time_map)
-
+    # mapped User dict
     for user in User:
         nfeedback = len(User[user])
         if nfeedback < 3:
@@ -206,7 +227,7 @@ def evaluate(model, dataset, args):
     HT = 0.0
     valid_user = 0.0
 
-    if usernum>10000:
+    if usernum > 10000:
         users = random.sample(range(1, usernum + 1), 10000)
     else:
         users = range(1, usernum + 1)
@@ -217,16 +238,17 @@ def evaluate(model, dataset, args):
         seq = np.zeros([args.maxlen], dtype=np.int32)
         time_seq = np.zeros([args.maxlen], dtype=np.int32)
         idx = args.maxlen - 1
-        
+
         seq[idx] = valid[u][0][0]
         time_seq[idx] = valid[u][0][1]
         idx -= 1
         for i in reversed(train[u]):
+            # fill the item seq and time seq
             seq[idx] = i[0]
             time_seq[idx] = i[1]
             idx -= 1
             if idx == -1: break
-        rated = set(map(lambda x: x[0],train[u]))
+        rated = set(map(lambda x: x[0], train[u]))
         rated.add(valid[u][0][0])
         rated.add(test[u][0][0])
         rated.add(0)
@@ -237,8 +259,8 @@ def evaluate(model, dataset, args):
             item_idx.append(t)
 
         time_matrix = computeRePos(time_seq, args.time_span)
-
-        predictions = -model.predict(*[np.array(l) for l in [[u], [seq], [time_matrix],item_idx]])
+        # time interval matrix for the current user
+        predictions = -model.predict(*[np.array(l) for l in [[u], [seq], [time_matrix], item_idx]])
         predictions = predictions[0]
 
         rank = predictions.argsort().argsort()[0].item()
@@ -249,7 +271,7 @@ def evaluate(model, dataset, args):
             NDCG += 1 / np.log2(rank + 2)
             HT += 1
         if valid_user % 100 == 0:
-            print('.',end='')
+            print('.', end='')
             sys.stdout.flush()
 
     return NDCG / valid_user, HT / valid_user
@@ -261,7 +283,7 @@ def evaluate_valid(model, dataset, args):
     NDCG = 0.0
     valid_user = 0.0
     HT = 0.0
-    if usernum>10000:
+    if usernum > 10000:
         users = random.sample(range(1, usernum + 1), 10000)
     else:
         users = range(1, usernum + 1)
@@ -287,7 +309,7 @@ def evaluate_valid(model, dataset, args):
             item_idx.append(t)
 
         time_matrix = computeRePos(time_seq, args.time_span)
-        predictions = -model.predict(*[np.array(l) for l in [[u], [seq], [time_matrix],item_idx]])
+        predictions = -model.predict(*[np.array(l) for l in [[u], [seq], [time_matrix], item_idx]])
         predictions = predictions[0]
 
         rank = predictions.argsort().argsort()[0].item()
@@ -298,7 +320,7 @@ def evaluate_valid(model, dataset, args):
             NDCG += 1 / np.log2(rank + 2)
             HT += 1
         if valid_user % 100 == 0:
-            print('.',end='')
+            print('.', end='')
             sys.stdout.flush()
 
     return NDCG / valid_user, HT / valid_user
