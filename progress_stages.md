@@ -244,7 +244,7 @@ Read → Understand
 2. Reproduce tisasrec results.
 ```
 
-## 708 (Sat.)
+## 709 (Sun.)
 ```
 Understand → Implement
 1. implement TiSASRec window predictor
