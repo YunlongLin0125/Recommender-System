@@ -8,10 +8,12 @@ from model import TiSASRec
 from tqdm import tqdm
 from utils import *
 
+
 def str2bool(s):
     if s not in {'false', 'true'}:
         raise ValueError('Not a valid boolean string')
     return s == 'true'
+
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--dataset', required=True)
@@ -39,6 +41,7 @@ f.close()
 if __name__ == '__main__':
     dataset = data_partition(args.dataset)
     [user_train, user_valid, user_test, usernum, itemnum, timenum] = dataset
+    # timenum used where?
     num_batch = len(user_train) // args.batch_size
     cc = 0.0
     for u in user_train:
@@ -48,21 +51,24 @@ if __name__ == '__main__':
     f = open(os.path.join(args.dataset + '_' + args.train_dir, 'log.txt'), 'w')
 
     try:
-        relation_matrix = pickle.load(open('data/relation_matrix_%s_%d_%d.pickle'%(args.dataset, args.maxlen, args.time_span),'rb'))
+        relation_matrix = pickle.load(
+            open('data/relation_matrix_%s_%d_%d.pickle' % (args.dataset, args.maxlen, args.time_span), 'rb'))
     except:
         relation_matrix = Relation(user_train, usernum, args.maxlen, args.time_span)
-        pickle.dump(relation_matrix, open('data/relation_matrix_%s_%d_%d.pickle'%(args.dataset, args.maxlen, args.time_span),'wb'))
+        pickle.dump(relation_matrix,
+                    open('data/relation_matrix_%s_%d_%d.pickle' % (args.dataset, args.maxlen, args.time_span), 'wb'))
 
-    sampler = WarpSampler(user_train, usernum, itemnum, relation_matrix, batch_size=args.batch_size, maxlen=args.maxlen, n_workers=3)
+    sampler = WarpSampler(user_train, usernum, itemnum, relation_matrix, batch_size=args.batch_size, maxlen=args.maxlen,
+                          n_workers=3)
     model = TiSASRec(usernum, itemnum, itemnum, args).to(args.device)
 
     for name, param in model.named_parameters():
         try:
             torch.nn.init.xavier_uniform_(param.data)
         except:
-            pass # just ignore those failed init layers
+            pass  # just ignore those failed init layers
 
-    model.train() # enable model training
+    model.train()  # enable model training
 
     epoch_start_idx = 1
     if args.state_dict_path is not None:
@@ -86,13 +92,14 @@ if __name__ == '__main__':
     t0 = time.time()
 
     for epoch in range(epoch_start_idx, args.num_epochs + 1):
-        if args.inference_only: break # just to decrease identition
-        for step in range(num_batch): # tqdm(range(num_batch), total=num_batch, ncols=70, leave=False, unit='b'):
-            u, seq, time_seq, time_matrix, pos, neg = sampler.next_batch() # tuples to ndarray
+        if args.inference_only: break  # just to decrease identition
+        for step in range(num_batch):  # tqdm(range(num_batch), total=num_batch, ncols=70, leave=False, unit='b'):
+            u, seq, time_seq, time_matrix, pos, neg = sampler.next_batch()  # tuples to ndarray
             u, seq, pos, neg = np.array(u), np.array(seq), np.array(pos), np.array(neg)
             time_seq, time_matrix = np.array(time_seq), np.array(time_matrix)
             pos_logits, neg_logits = model(u, seq, time_matrix, pos, neg)
-            pos_labels, neg_labels = torch.ones(pos_logits.shape, device=args.device), torch.zeros(neg_logits.shape, device=args.device)
+            pos_labels, neg_labels = torch.ones(pos_logits.shape, device=args.device), torch.zeros(neg_logits.shape,
+                                                                                                   device=args.device)
             # print("\neye ball check raw_logits:"); print(pos_logits); print(neg_logits) # check pos_logits > 0, neg_logits < 0
             adam_optimizer.zero_grad()
             indices = np.where(pos != 0)
@@ -105,7 +112,8 @@ if __name__ == '__main__':
             for param in model.time_matrix_V_emb.parameters(): loss += args.l2_emb * torch.norm(param)
             loss.backward()
             adam_optimizer.step()
-            print("loss in epoch {} iteration {}: {}".format(epoch, step, loss.item())) # expected 0.4~0.6 after init few epochs
+            print("loss in epoch {} iteration {}: {}".format(epoch, step,
+                                                             loss.item()))  # expected 0.4~0.6 after init few epochs
 
         if epoch % 20 == 0:
             model.eval()
@@ -115,7 +123,7 @@ if __name__ == '__main__':
             t_test = evaluate(model, dataset, args)
             t_valid = evaluate_valid(model, dataset, args)
             print('epoch:%d, time: %f(s), valid (NDCG@10: %.4f, HR@10: %.4f), test (NDCG@10: %.4f, HR@10: %.4f)'
-                    % (epoch, T, t_valid[0], t_valid[1], t_test[0], t_test[1]))
+                  % (epoch, T, t_valid[0], t_valid[1], t_test[0], t_test[1]))
 
             f.write(str(t_valid) + ' ' + str(t_test) + '\n')
             f.flush()
@@ -125,7 +133,8 @@ if __name__ == '__main__':
         if epoch == args.num_epochs:
             folder = args.dataset + '_' + args.train_dir
             fname = 'TiSASRec.epoch={}.lr={}.layer={}.head={}.hidden={}.maxlen={}.pth'
-            fname = fname.format(args.num_epochs, args.lr, args.num_blocks, args.num_heads, args.hidden_units, args.maxlen)
+            fname = fname.format(args.num_epochs, args.lr, args.num_blocks, args.num_heads, args.hidden_units,
+                                 args.maxlen)
             torch.save(model.state_dict(), os.path.join(folder, fname))
 
     f.close()

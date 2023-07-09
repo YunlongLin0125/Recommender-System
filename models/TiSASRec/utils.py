@@ -36,7 +36,8 @@ def Relation(user_train, usernum, maxlen, time_span):
         for i in reversed(user_train[user][:-1]):
             time_seq[idx] = i[1]
             idx -= 1
-            if idx == -1: break
+            if idx == -1:
+                break
         data_train[user] = computeRePos(time_seq, time_span)
         # calculate the relation matrix (time interval matrix
         # between the items in the sequence) for each user
@@ -59,7 +60,8 @@ def sample_function(user_train, usernum, itemnum, batch_size, maxlen, relation_m
             seq[idx] = i[0]
             time_seq[idx] = i[1]
             pos[idx] = nxt
-            if nxt != 0: neg[idx] = random_neq(1, itemnum + 1, ts)
+            if nxt != 0:
+                neg[idx] = random_neq(1, itemnum + 1, ts)
             nxt = i[0]
             idx -= 1
             if idx == -1: break
@@ -105,6 +107,11 @@ class WarpSampler(object):
 
 
 def timeSlice(time_set):
+    """
+    This function takes in a set of times (presumably timestamps), and it creates a dictionary
+    that maps each timestamp to an integer representation of it,
+    relative to the smallest timestamp in the set.
+    """
     time_min = min(time_set)
     time_map = dict()
     for time in time_set:  # float as map key?
@@ -113,6 +120,11 @@ def timeSlice(time_set):
 
 
 def cleanAndsort(User, time_map):
+    """
+    This function takes in the User dictionary and the time_map dictionary (created by the timeSlice function).
+    The User dictionary is assumed to be a nested dictionary where the first key is a user ID,
+    and the value is a list of tuples containing item IDs and their associated timestamps.
+    """
     User_filted = dict()
     user_set = set()
     item_set = set()
@@ -132,7 +144,6 @@ def cleanAndsort(User, time_map):
     for user, items in User_filted.items():
         User_filted[user] = sorted(items, key=lambda x: x[1])
         # sorted by timestamp
-
     User_res = dict()
     for user, items in User_filted.items():
         User_res[user_map[user]] = list(map(lambda x: [item_map[x[0]], time_map[x[1]]], items))
@@ -145,16 +156,17 @@ def cleanAndsort(User, time_map):
         time_diff = set()
         for i in range(len(time_list) - 1):
             if time_list[i + 1] - time_list[i] != 0:
-                # calculate time interval
+                # calculate time interval and store
                 time_diff.add(time_list[i + 1] - time_list[i])
         if len(time_diff) == 0:
             time_scale = 1
         else:
             time_scale = min(time_diff)
-            # scale the time
+            # scale the time by the time_min
         time_min = min(time_list)
+        # minimum time of the current user
         User_res[user] = list(map(lambda x: [x[0], int(round((x[1] - time_min) / time_scale) + 1)], items))
-        # scaled time interval
+        # get scaled relative time
         time_max.add(max(set(map(lambda x: x[1], User_res[user]))))
         # find the max time stamp for each user
     return User_res, len(user_set), len(item_set), max(time_max)
@@ -201,7 +213,7 @@ def data_partition(fname):
         # include the time feature
     f.close()
     time_map = timeSlice(time_set)
-    # get the relevant timestamp rather than absolute
+    # map the absolute timestamp - time_min
     User, usernum, itemnum, timenum = cleanAndsort(User, time_map)
     # mapped User dict
     for user in User:

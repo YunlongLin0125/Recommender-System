@@ -247,6 +247,7 @@ Read → Understand
 ## 709 (Sun.)
 ```
 Understand → Implement
-1. implement TiSASRec window predictor
-2. Expand the architecture to my window predictor
+1. Understand the code (Relation Matrix)
+2. implement TiSASRec window predictor
+3. 
 ```

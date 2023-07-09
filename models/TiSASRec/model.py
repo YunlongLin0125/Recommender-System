@@ -155,8 +155,9 @@ class TiSASRec(torch.nn.Module):  # similar to torch.nn.MultiheadAttention
         seqs = self.item_emb_dropout(seqs)
         # seqs is item embeddings
         positions = np.tile(np.array(range(log_seqs.shape[1])), [log_seqs.shape[0], 1])
+        # positions.shape = [batch_size, seq_len, pos]
         positions = torch.LongTensor(positions).to(self.dev)
-        # absolute matrix is also different for K and V
+        # absolute pos matrix is also different for K and V
         abs_pos_K = self.abs_pos_K_emb(positions)
         abs_pos_V = self.abs_pos_V_emb(positions)
         abs_pos_K = self.abs_pos_K_emb_dropout(abs_pos_K)
@@ -197,7 +198,6 @@ class TiSASRec(torch.nn.Module):  # similar to torch.nn.MultiheadAttention
             seqs *= ~timeline_mask.unsqueeze(-1)
 
         log_feats = self.last_layernorm(seqs)
-
         return log_feats
 
     def forward(self, user_ids, log_seqs, time_matrices, pos_seqs, neg_seqs):  # for training
@@ -352,7 +352,6 @@ class TiAllAction(torch.nn.Module):  # similar to torch.nn.MultiheadAttention
         final_feat = log_feats[:, -1, :]  # only use last QKV classifier, a waste
         item_embs = self.item_emb(torch.LongTensor(item_indices).to(self.dev))  # (U, I, C)
         logits = item_embs.matmul(final_feat.unsqueeze(-1)).squeeze(-1)
-
         # preds = self.pos_sigmoid(logits) # rank same item list for different users
 
         return logits  # preds # (U, I)
