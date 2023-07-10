@@ -98,7 +98,6 @@ class TimeAwareMultiHeadAttention(torch.nn.Module):
 class TiSASRec(torch.nn.Module):  # similar to torch.nn.MultiheadAttention
     def __init__(self, user_num, item_num, time_num, args):
         super(TiSASRec, self).__init__()
-
         self.user_num = user_num
         self.item_num = item_num
         self.dev = args.device
@@ -228,109 +227,7 @@ class TiSASRec(torch.nn.Module):  # similar to torch.nn.MultiheadAttention
         return logits  # preds # (U, I)
 
 
-class TiAllAction(torch.nn.Module):  # similar to torch.nn.MultiheadAttention
-    def __init__(self, user_num, item_num, time_num, args):
-        super(TiAllAction, self).__init__()
-
-        self.user_num = user_num
-        self.item_num = item_num
-        self.dev = args.device
-
-        # TODO: loss += args.l2_emb for regularizing embedding vectors during training
-        # https://stackoverflow.com/questions/42704283/adding-l1-l2-regularization-in-pytorch
-        self.item_emb = torch.nn.Embedding(self.item_num + 1, args.hidden_units, padding_idx=0)
-        self.item_emb_dropout = torch.nn.Dropout(p=args.dropout_rate)
-
-        self.abs_pos_K_emb = torch.nn.Embedding(args.maxlen, args.hidden_units)
-        self.abs_pos_V_emb = torch.nn.Embedding(args.maxlen, args.hidden_units)
-        self.time_matrix_K_emb = torch.nn.Embedding(args.time_span + 1, args.hidden_units)
-        self.time_matrix_V_emb = torch.nn.Embedding(args.time_span + 1, args.hidden_units)
-        # time interval matrix, time interval is not constant number, time embedding.
-
-        # drop out
-        self.item_emb_dropout = torch.nn.Dropout(p=args.dropout_rate)
-        self.abs_pos_K_emb_dropout = torch.nn.Dropout(p=args.dropout_rate)
-        self.abs_pos_V_emb_dropout = torch.nn.Dropout(p=args.dropout_rate)
-        self.time_matrix_K_dropout = torch.nn.Dropout(p=args.dropout_rate)
-        self.time_matrix_V_dropout = torch.nn.Dropout(p=args.dropout_rate)
-
-        # 1
-        self.attention_layernorms = torch.nn.ModuleList()  # to be Q for self-attention
-        self.attention_layers = torch.nn.ModuleList()
-        self.forward_layernorms = torch.nn.ModuleList()
-        self.forward_layers = torch.nn.ModuleList()
-
-        self.last_layernorm = torch.nn.LayerNorm(args.hidden_units, eps=1e-8)
-
-        for _ in range(args.num_blocks):
-            new_attn_layernorm = torch.nn.LayerNorm(args.hidden_units, eps=1e-8)
-            self.attention_layernorms.append(new_attn_layernorm)
-            # Normalisation
-
-            new_attn_layer = TimeAwareMultiHeadAttention(args.hidden_units,
-                                                         args.num_heads,
-                                                         args.dropout_rate,
-                                                         args.device)
-            self.attention_layers.append(new_attn_layer)
-            # Attention layer
-
-            new_fwd_layernorm = torch.nn.LayerNorm(args.hidden_units, eps=1e-8)
-            self.forward_layernorms.append(new_fwd_layernorm)
-            # Normalisation
-
-            new_fwd_layer = PointWiseFeedForward(args.hidden_units, args.dropout_rate)
-            self.forward_layers.append(new_fwd_layer)
-            # FFN
-
-    def seq2feats(self, user_ids, log_seqs, time_matrices):
-        seqs = self.item_emb(torch.LongTensor(log_seqs).to(self.dev))
-        seqs *= self.item_emb.embedding_dim ** 0.5
-        seqs = self.item_emb_dropout(seqs)
-        # seqs is item embeddings
-        positions = np.tile(np.array(range(log_seqs.shape[1])), [log_seqs.shape[0], 1])
-        positions = torch.LongTensor(positions).to(self.dev)
-        # absolute matrix is also different for K and V
-        abs_pos_K = self.abs_pos_K_emb(positions)
-        abs_pos_V = self.abs_pos_V_emb(positions)
-        abs_pos_K = self.abs_pos_K_emb_dropout(abs_pos_K)
-        abs_pos_V = self.abs_pos_V_emb_dropout(abs_pos_V)
-
-        time_matrices = torch.LongTensor(time_matrices).to(self.dev)
-        # time matrix is different for K and V
-        time_matrix_K = self.time_matrix_K_emb(time_matrices)
-        time_matrix_V = self.time_matrix_V_emb(time_matrices)
-        time_matrix_K = self.time_matrix_K_dropout(time_matrix_K)
-        time_matrix_V = self.time_matrix_V_dropout(time_matrix_V)
-
-        # mask 0th items(placeholder for dry-run) in log_seqs
-        # would be easier if 0th item could be an exception for training
-        timeline_mask = torch.BoolTensor(log_seqs == 0).to(self.dev)
-        seqs *= ~timeline_mask.unsqueeze(-1)  # broadcast in last dim
-
-        tl = seqs.shape[1]  # time dim len for enforce causality
-        attention_mask = ~torch.tril(torch.ones((tl, tl), dtype=torch.bool, device=self.dev))
-
-        for i in range(len(self.attention_layers)):
-            # Self-attention, Q=layernorm(seqs), K=V=seqs
-            # seqs = torch.transpose(seqs, 0, 1) # (N, T, C) -> (T, N, C)
-            Q = self.attention_layernorms[i](seqs)  # PyTorch mha requires time first fmt
-            # we don't have Q for time_matrix, abs_pos.
-            # Q is normalised seqs
-            mha_outputs = self.attention_layers[i](Q, seqs,
-                                                   timeline_mask, attention_mask,
-                                                   time_matrix_K, time_matrix_V,
-                                                   abs_pos_K, abs_pos_V)
-            # incorporate the item embedding with time features and context items by attention
-            seqs = Q + mha_outputs
-            # seqs = torch.transpose(seqs, 0, 1) # (T, N, C) -> (N, T, C)
-            # Point-wise Feed-forward, actually 2 Conv1D for channel wise fusion
-            seqs = self.forward_layernorms[i](seqs)
-            seqs = self.forward_layers[i](seqs)
-            seqs *= ~timeline_mask.unsqueeze(-1)
-
-        log_feats = self.last_layernorm(seqs)
-
-        return log_feats
+class TiAllAction(TiSASRec):  # similar to torch.nn.MultiheadAttention
 
     def forward(self, user_ids, log_seqs, time_matrices, pos_seqs, neg_seqs):  # for training
         log_feats = self.seq2feats(user_ids, log_seqs, time_matrices)
@@ -338,20 +235,118 @@ class TiAllAction(torch.nn.Module):  # similar to torch.nn.MultiheadAttention
         # features obtained: embedding including time features
         pos_embs = self.item_emb(torch.LongTensor(pos_seqs).to(self.dev))[:, -1, :]
         neg_embs = self.item_emb(torch.LongTensor(neg_seqs).to(self.dev))[:, -1, :]
-
-        pos_logits = (final_feat * pos_embs).sum(dim=-1)
-        neg_logits = (final_feat * neg_embs).sum(dim=-1)
-
+        # print(final_feat.shape)
+        # print(pos_embs.shape)
+        pos_logits = (final_feat.unsqueeze(1) * pos_embs).sum(dim=-1)
+        neg_logits = (final_feat.unsqueeze(1) * neg_embs).sum(dim=-1)
         # pos_pred = self.pos_sigmoid(pos_logits)
         # neg_pred = self.neg_sigmoid(neg_logits)
 
         return pos_logits, neg_logits  # pos_pred, neg_pred
 
-    def predict(self, user_ids, log_seqs, time_matrices, item_indices):  # for inference
-        log_feats = self.seq2feats(user_ids, log_seqs, time_matrices)
-        final_feat = log_feats[:, -1, :]  # only use last QKV classifier, a waste
-        item_embs = self.item_emb(torch.LongTensor(item_indices).to(self.dev))  # (U, I, C)
-        logits = item_embs.matmul(final_feat.unsqueeze(-1)).squeeze(-1)
-        # preds = self.pos_sigmoid(logits) # rank same item list for different users
 
-        return logits  # preds # (U, I)
+class TiDenseAllAction(TiSASRec):  # similar to torch.nn.MultiheadAttention
+    def forward(self, user_ids, log_seqs, time_matrices, pos_seqs, neg_seqs):
+        log_feats = self.seq2feats(user_ids, log_seqs, time_matrices)
+        # log_feats.shape = [batch_size, seq_len, hidden_units]
+        # pos_seqs.shape = [batch_size, seq_len]
+        # neg_seqs.shape = [batch_size, seq_len]
+        # get the last item in the sequence
+        pos_embs = self.item_emb(torch.LongTensor(pos_seqs).to(self.dev))
+        # pos_embs.shape = (batch_size, seq_len, hidden_units)
+        neg_embs = self.item_emb(torch.LongTensor(neg_seqs).to(self.dev))
+        # neg_embs.shape = (batch_size, seq_len, neg_nums, hidden_units)
+        # print(neg_embs.shape)
+        # print(log_feats.shape)
+        # print(log_feats.unsqueeze(2).shape)
+        pos_embs = pos_embs.squeeze(-2)
+        pos_logits = (log_feats * pos_embs).sum(dim=-1)
+        # pos_logits.shape = (batch_size, seq_len)
+        neg_logits = (log_feats.unsqueeze(2) * neg_embs).sum(dim=-1)
+        # log_feats.unsqueeze(2).shape = [batch_size, seq_len, 1, hidden_units]
+        # neg_logits.shape = (batch_size, seq_len, neg_nums)
+        # pos_logits = pos_logits.unsqueeze(-1)
+        return pos_logits, neg_logits
+
+
+class TiDenseAllPlus(TiSASRec):  # similar to torch.nn.MultiheadAttention
+    # Dense all +, dense all ++, combined
+    def forward(self, user_ids, log_seqs, time_matrices, pos_seqs, neg_seqs):
+        # num_pos, num_neg
+        log_feats = self.seq2feats(user_ids, log_seqs, time_matrices)
+        pos_embs = self.item_emb(torch.LongTensor(pos_seqs).to(self.dev))
+        neg_embs = self.item_emb(torch.LongTensor(neg_seqs).to(self.dev))
+        pos_logits = (log_feats.unsqueeze(2) * pos_embs).sum(dim=-1)
+        neg_logits = (log_feats.unsqueeze(2) * neg_embs).sum(dim=-1)
+        return pos_logits, neg_logits
+
+
+class TiSASRecSampledLoss(TiSASRec):
+    def __init__(self, user_num, item_num, time_num, args):
+        super().__init__(user_num, item_num, time_num, args)
+        initial_temperature = 1.0  # you can choose any initial value depending on your problem
+        self.temperature = torch.nn.Parameter(torch.tensor([initial_temperature], device=self.dev))
+
+    def forward(self, user_ids, log_seqs, time_matrices, pos_seqs, neg_seqs):  # for training
+        log_feats = self.seq2feats(user_ids, log_seqs, time_matrices)
+        # features obtained: embedding including time features
+        pos_embs = self.item_emb(torch.LongTensor(pos_seqs).to(self.dev))
+        neg_embs = self.item_emb(torch.LongTensor(neg_seqs).to(self.dev))
+        pos_logits = (log_feats * pos_embs).sum(dim=-1) / self.temperature
+        neg_logits = (log_feats.unsqueeze(2) * neg_embs).sum(dim=-1) / self.temperature
+        # pos_pred = self.pos_sigmoid(pos_logits)
+        # neg_pred = self.neg_sigmoid(neg_logits)
+
+        return pos_logits, neg_logits  # pos_pred, neg_pred
+
+
+class TiAllActionSampledLoss(TiSASRecSampledLoss):
+    def forward(self, user_ids, log_seqs, time_matrices, pos_seqs, neg_seqs):  # for training
+        log_feats = self.seq2feats(user_ids, log_seqs, time_matrices)
+        final_feat = log_feats[:, -1, :]
+        # features obtained: embedding including time features
+        pos_embs = self.item_emb(torch.LongTensor(pos_seqs).to(self.dev))[:, -1, :]
+        neg_embs = self.item_emb(torch.LongTensor(neg_seqs).to(self.dev))[:, -1, :]
+        # print(final_feat.shape)
+        # print(pos_embs.shape)
+        pos_logits = (final_feat.unsqueeze(1) * pos_embs).sum(dim=-1) / self.temperature
+        neg_logits = (final_feat.unsqueeze(1) * neg_embs).sum(dim=-1) / self.temperature
+        # pos_pred = self.pos_sigmoid(pos_logits)
+        # neg_pred = self.neg_sigmoid(neg_logits)
+        return pos_logits, neg_logits  # pos_pred, neg_pred
+
+
+class TiDenseAllActionSampledLoss(TiSASRecSampledLoss):
+    def forward(self, user_ids, log_seqs, time_matrices, pos_seqs, neg_seqs):
+        log_feats = self.seq2feats(user_ids, log_seqs, time_matrices)
+        # log_feats.shape = [batch_size, seq_len, hidden_units]
+        # pos_seqs.shape = [batch_size, seq_len]
+        # neg_seqs.shape = [batch_size, seq_len]
+        # get the last item in the sequence
+        pos_embs = self.item_emb(torch.LongTensor(pos_seqs).to(self.dev))
+        # pos_embs.shape = (batch_size, seq_len, hidden_units)
+        neg_embs = self.item_emb(torch.LongTensor(neg_seqs).to(self.dev))
+        # neg_embs.shape = (batch_size, seq_len, neg_nums, hidden_units)
+        # print(neg_embs.shape)
+        # print(log_feats.shape)
+        # print(log_feats.unsqueeze(2).shape)
+        pos_embs = pos_embs.squeeze(-2)
+        pos_logits = (log_feats * pos_embs).sum(dim=-1) / self.temperature
+        # pos_logits.shape = (batch_size, seq_len)
+        neg_logits = (log_feats.unsqueeze(2) * neg_embs).sum(dim=-1) / self.temperature
+        # log_feats.unsqueeze(2).shape = [batch_size, seq_len, 1, hidden_units]
+        # neg_logits.shape = (batch_size, seq_len, neg_nums)
+        # pos_logits = pos_logits.unsqueeze(-1)
+        return pos_logits, neg_logits
+
+
+class TiDenseAllPlusSampledLoss(TiSASRecSampledLoss):  # similar to torch.nn.MultiheadAttention
+    # Dense all +, dense all ++, combined
+    def forward(self, user_ids, log_seqs, time_matrices, pos_seqs, neg_seqs):
+        # num_pos, num_neg
+        log_feats = self.seq2feats(user_ids, log_seqs, time_matrices)
+        pos_embs = self.item_emb(torch.LongTensor(pos_seqs).to(self.dev))
+        neg_embs = self.item_emb(torch.LongTensor(neg_seqs).to(self.dev))
+        pos_logits = (log_feats.unsqueeze(2) * pos_embs).sum(dim=-1)/ self.temperature
+        neg_logits = (log_feats.unsqueeze(2) * neg_embs).sum(dim=-1)/ self.temperature
+        return pos_logits, neg_logits
