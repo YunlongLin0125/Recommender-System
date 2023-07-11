@@ -3,6 +3,8 @@ import time
 import torch
 import pickle
 import argparse
+import sys
+from model_sasrec import SASRecSampledLoss, SASRec
 from model import TiSASRec, TiAllAction, TiDenseAllAction, TiDenseAllPlus
 from model import TiSASRecSampledLoss, TiAllActionSampledLoss, TiDenseAllActionSampledLoss, TiDenseAllPlusSampledLoss
 from tqdm import tqdm
@@ -135,7 +137,6 @@ if __name__ == '__main__':
     f = open(os.path.join(args.dataset + '_' + args.train_dir, 'log.txt'), 'w')
 
     # get the relation matrix
-
     try:
         relation_matrix = pickle.load(
             open('data/relation_matrix_%s_%d_%d.pickle' % (args.dataset, args.maxlen, args.time_span), 'rb'))
@@ -146,6 +147,7 @@ if __name__ == '__main__':
             relation_matrix = Relation(sample_train, usernum, args.maxlen, args.time_span)
         pickle.dump(relation_matrix,
                     open('data/relation_matrix_%s_%d_%d.pickle' % (args.dataset, args.maxlen, args.time_span), 'wb'))
+
     print("Relation Matrix Generated")
 
     # Sampler Selection
@@ -171,10 +173,10 @@ if __name__ == '__main__':
             pass  # just ignore those failed init layers
     # load item embedding
     if args.load_emb:
-        source_model = TiSASRecSampledLoss(usernum, itemnum, timenum, args).to(args.device)  # This is your source model.
+        source_model = SASRecSampledLoss(usernum, itemnum, args).to(args.device)
         if 'ml-20m' in args.dataset:
-            source_model.load_state_dict(torch.load('item_emb/TiSASRec.epoch=201.lr=0.001.layer=2.head=1.hidden=50'
-                                                    '.maxlen=50.pth'))
+            source_model.load_state_dict(torch.load('../SASRec/experiments/temporal/ml-20m/item_emb/normal_sasrec'
+                                                    '.epoch=50.lr=0.001.layer=2.head=1.hidden=50.maxlen=200.pth'))
         item_emb_param = source_model.item_emb.weight.data.clone()
         model.item_emb.weight.data = item_emb_param
     # freeze item embedding
