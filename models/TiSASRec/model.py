@@ -206,7 +206,7 @@ class TiSASRec(torch.nn.Module):  # similar to torch.nn.MultiheadAttention
         neg_embs = self.item_emb(torch.LongTensor(neg_seqs).to(self.dev))
 
         pos_logits = (log_feats * pos_embs).sum(dim=-1)
-        neg_logits = (log_feats * neg_embs).sum(dim=-1)
+        neg_logits = (log_feats.unsqueeze(2) * neg_embs).sum(dim=-1)
 
         # pos_pred = self.pos_sigmoid(pos_logits)
         # neg_pred = self.neg_sigmoid(neg_logits)

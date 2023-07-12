@@ -88,7 +88,7 @@ if __name__ == '__main__':
     if args.loss_function == BCE:
         if args.model == NORMAL_SASREC:
             # 1, 1
-            sample_train = user_train
+            sample_train = user_input
             model = TiSASRec(usernum, itemnum, itemnum, args).to(args.device)
         else:
             sample_train = user_input
@@ -175,8 +175,8 @@ if __name__ == '__main__':
     if args.load_emb:
         source_model = SASRecSampledLoss(usernum, itemnum, args).to(args.device)
         if 'ml-20m' in args.dataset:
-            source_model.load_state_dict(torch.load('../SASRec/experiments/temporal/ml-20m/item_emb/normal_sasrec'
-                                                    '.epoch=50.lr=0.001.layer=2.head=1.hidden=50.maxlen=200.pth'))
+            source_model.load_state_dict(torch.load('item_emb/normal_sasrec.epoch=260.lr=0.001.'
+                                                    'layer=2.head=1.hidden=50.maxlen=50.pth'))
         item_emb_param = source_model.item_emb.weight.data.clone()
         model.item_emb.weight.data = item_emb_param
     # freeze item embedding
