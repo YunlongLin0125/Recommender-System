@@ -248,6 +248,35 @@ Read → Understand
 ```
 Understand → Implement
 1. Understand the code (Relation Matrix)
-2. implement TiSASRec window predictor
-3. 
+2. implement TiSASRec window predictor (for all action)
 ```
+
+## 710 (Mon.)
+
+```
+1. Not finish the implementation for window predictor incorparating
+2. Memory error (relation matrix)
+3. Slides preparation
+```
+
+## 711 (Tue.)
+
+```
+1. Progress report
+2. Suggest & Read T2V, which just incorporate time as a feature, rather than time interval matrix (Memory cost).
+```
+
+## 712  (Wed.)
+
+```
+1. Progress report
+2. Code Refactor.
+3. Current Step: Try to implement transfer learning to TiSASRec (Haven't implement yet)
+```
+
+## 714 (Thur.)
+
+```
+1. Progress report finish
+```
+
