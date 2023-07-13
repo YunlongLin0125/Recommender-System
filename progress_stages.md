@@ -272,11 +272,12 @@ Understand → Implement
 1. Progress report
 2. Code Refactor.
 3. Current Step: Try to implement transfer learning to TiSASRec (Haven't implement yet)
+4. finish the progress report
 ```
 
 ## 714 (Thur.)
 
 ```
-1. Progress report finish
+1. read paper time2vec
 ```
 
