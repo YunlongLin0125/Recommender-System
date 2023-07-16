@@ -275,9 +275,25 @@ Understand → Implement
 4. finish the progress report
 ```
 
-## 714 (Thur.)
+## 713 (Thur.)
 
 ```
 1. read paper time2vec
+```
+
+## 715 (Sat.)
+
+```
+1. Understand the paper time2vec.
+Periodic activation (sine).
+2. Understand what Pinnerformer is doing.
+Periodic activations (cosine (P dims), sine(P dims) and log transformation (1 dim)) (2P + 1)
+```
+
+## 716 (Sun.)
+
+```
+1. implement time2vec (only one time feature, abs: time diff).
+2. extend its to window-predictor.
 ```
 

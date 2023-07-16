@@ -1,0 +1,8 @@
+.DS_Store
+__pycache__/
+*_default/
+*.pickle
+/data/ml-20m_train_withtime.txt
+/data/ml-20m_target_withtime.txt
+/data/relation_matrix_ml-1m_50_256.pickle
+/data/relation_matrix_ml-20m_50_256.pickle
