@@ -259,6 +259,8 @@ Understand → Implement
 3. Slides preparation
 ```
 
+# week 6
+
 ## 711 (Tue.)
 
 ```
@@ -306,3 +308,22 @@ Results are collected by best in valid dataset and correcsponding test
 3. slides preparation
 ```
 
+# week 7
+
+
+
+## 718 (Tue.)
+
+```
+```
+
+
+
+# TODO
+
+1. incorporate relative time features.
+2. P90 coverage evaluation metric
+3. Formal experiments run
+4. Hyperparameter tuning
+5. More datasets
+6. Dissertation
