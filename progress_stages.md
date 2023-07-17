@@ -324,6 +324,7 @@ Results are collected by best in valid dataset and correcsponding test
 1. incorporate relative time features.
 2. P90 coverage evaluation metric
 3. Formal experiments run
-4. Hyperparameter tuning
-5. More datasets
-6. Dissertation
+4. Dissertation
+5. Hyperparameter tuning (optional)
+6. Try different data splitting strategy (optional)
+7. More datasets (optional)
