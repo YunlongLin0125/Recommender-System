@@ -297,3 +297,12 @@ Periodic activations (cosine (P dims), sine(P dims) and log transformation (1 di
 2. extend its to window-predictor.
 ```
 
+## 717 (Mon.)
+
+```
+1. Run experiments (lr=0.003; eval_epo = 2; total_ep = 20) on t2v-models
+Results are collected by best in valid dataset and correcsponding test
+2. Rerun previous exepriments on normal models
+3. slides preparation
+```
+
