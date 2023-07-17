@@ -2,7 +2,7 @@ batch_size,128
 dataset,processed/ml-20m
 device,cuda
 dropout_rate,0.2
-eval_epoch,1
+eval_epoch,2
 finetune,False
 frozen_item,True
 hidden_units,50
@@ -15,7 +15,7 @@ lr,0.003
 maxlen,200
 model,dense_all_action_plus_plus
 num_blocks,2
-num_epochs,15
+num_epochs,20
 num_heads,1
 state_dict_path,None
 temporal,True
