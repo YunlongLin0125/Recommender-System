@@ -76,7 +76,7 @@ def sample_function(user_train, usernum, itemnum, batch_size, maxlen, result_que
             idx -= 1
             if idx == -1:
                 break
-        return user, seq, time_seq,  pos, neg
+        return user, seq, time_seq, pos, neg
 
     np.random.seed(SEED)
     while True:
@@ -232,7 +232,7 @@ class WarpSamplerInputTarget(object):
 
 
 def sample_function_input_target_byT(user_train, train_target, train_ids, usernum, itemnum,
-                                     batch_size, maxlen, relation_matrix, result_queue, args, SEED):
+                                     batch_size, maxlen, result_queue, args, SEED):
     def sample(user):
         # randomly select a trained used user index
         idx = maxlen - 1
@@ -240,7 +240,7 @@ def sample_function_input_target_byT(user_train, train_target, train_ids, usernu
         sample_actions = 16
         target_seq = [x[0] for x in train_target[user]]
         if args.model in [DENSE_ALL_ACTION]:
-            target_seq = train_target[user]
+            target_seq = target_seq
         else:
             if len(target_seq) > sample_actions:
                 target_seq = random.sample(target_seq, k=sample_actions)
@@ -316,9 +316,11 @@ def sample_function_input_target_byT(user_train, train_target, train_ids, usernu
             time_seq = np.zeros([maxlen], dtype=np.int32)
             pos = np.zeros([maxlen], dtype=np.int32)
             neg = np.zeros([maxlen, num_neg], dtype=np.int32)
-            nxt = (user_train[user] + train_target[user])[-1][0]
-            ts = [x[0] for x in (user_train[user] + train_target[user])]
-            for i in reversed((user_train[user] + train_target[user])[:-1]):
+            # already handled during the data partition task
+            # nxt = (user_train[user] + train_target[user])[-1][0]
+            nxt = user_train[user][-1][0]
+            ts = [x[0] for x in user_train[user]]
+            for i in reversed(user_train[user][:-1]):
                 # fill the seq with all interacted except the last item as the target action
                 # i started by user_train[user][-2]
                 seq[idx] = i[0]
@@ -330,8 +332,7 @@ def sample_function_input_target_byT(user_train, train_target, train_ids, usernu
                 idx -= 1
                 if idx == -1:
                     break
-        time_matrix = relation_matrix[user]
-        return user, seq, time_seq, time_matrix, pos, neg
+        return user, seq, time_seq, pos, neg
 
     np.random.seed(SEED)
     while True:
@@ -345,7 +346,7 @@ def sample_function_input_target_byT(user_train, train_target, train_ids, usernu
 
 
 class WarpSamplerInputTarget_byT(object):
-    def __init__(self, user_input, user_target, train_ids, usernum, itemnum, relation_matrix, args, batch_size=64
+    def __init__(self, user_input, user_target, train_ids, usernum, itemnum, args, batch_size=64
                  , maxlen=10, n_workers=1):
         self.result_queue = Queue(maxsize=n_workers * 10)
         self.processors = []
@@ -358,7 +359,6 @@ class WarpSamplerInputTarget_byT(object):
                                                                        itemnum,
                                                                        batch_size,
                                                                        maxlen,
-                                                                       relation_matrix,
                                                                        self.result_queue,
                                                                        args,
                                                                        np.random.randint(2e9)
@@ -373,6 +373,7 @@ class WarpSamplerInputTarget_byT(object):
         for p in self.processors:
             p.terminate()
             p.join()
+
 
 def time_feature_creation(User):
     # absolute time feature
@@ -540,7 +541,15 @@ def data_partition_window_InputTarget_byP(fname, valid_percent, test_percent, tr
     return [user_input, user_target, user_train, user_valid, user_test, usernum, itemnum]
 
 
-def data_partition_window_InputTarget_byT(f_train, f_target):
+def connect_input_target(user_input, user_target, train_users):
+    # user_train = defaultdict(list)
+    for u in train_users:
+        u_input = user_input[u]
+        u_target = user_target[u]
+        user_input[u] = u_input + u_target
+
+
+def data_partition_window_InputTarget_byT(f_train, f_target, args):
     usernum = 0
     itemnum = 0
     user_input = defaultdict(list)
@@ -565,7 +574,6 @@ def data_partition_window_InputTarget_byT(f_train, f_target):
         # include the time feature
     f.close()
     print("Input Read Done")
-    time_feature_creation(user_input)
     print("Time Scaled Done!")
     f = open('data/%s.txt' % f_target, 'r')
     # read from the target window
@@ -590,6 +598,10 @@ def data_partition_window_InputTarget_byT(f_train, f_target):
     train_users = users[:int(usernum * train_split)]
     valid_users = users[int(usernum * train_split):int(usernum * valid_split)]
     test_users = users[int(usernum * valid_split):]
+    if args.model == NORMAL_SASREC:
+        # next item prediction focus on the whole train seq rather than only input sequence.
+        connect_input_target(user_input, user_target, train_users)
+    time_feature_creation(user_input)
     print("Data processing Done")
     return [user_input, user_target, usernum, itemnum,
             train_users, valid_users, test_users]
@@ -723,8 +735,8 @@ def evaluate(model, dataset, args, eval_type='valid'):
     return Recall / valid_user, 0.66
 
 
-def evaluate_window_byT(model, dataset, args, eval_type='valid'):
-    [user_input, user_target, usernum, itemnum, timenum, _, valid_users, test_users] = dataset
+def evaluate_T(model, dataset, args, eval_type='valid'):
+    [user_input, user_target, usernum, itemnum, _, valid_users, test_users] = dataset
     # train.shape = [user_num, seq_num, (itemid, timestamp)]
     Recall = 0.0
     Recall_U = 0.0
@@ -763,8 +775,7 @@ def evaluate_window_byT(model, dataset, args, eval_type='valid'):
             neg.append(t)
         target_num = len(target_seq)
         item_idx = target_seq + neg
-        time_matrix = computeRePos(time_seq, args.time_span)
-        predictions = -model.predict(*[np.array(l) for l in [[u], [seq], [time_matrix], item_idx]])[0]
+        predictions = -model.predict(*[np.array(l) for l in [[u], [seq], [time_seq], item_idx]])[0]
         # target distance
         target_ds = predictions[:target_num]
         # sampled results

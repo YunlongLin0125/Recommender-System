@@ -5,7 +5,9 @@ import pickle
 import argparse
 import sys
 from model_sasrec import SASRecSampledLoss, SASRec
-from model import T2V_SASRec
+from model import T2V_SASRec, T2V_AllAction, T2V_DenseAllAction, T2V_DenseAllPlus
+from model import T2V_SASRecSampledLoss, T2V_AllActionSampledLoss
+from model import T2V_DenseAllActionSampledLoss, T2V_DenseAllPlusSampledLoss
 from tqdm import tqdm
 from utils import *
 
@@ -38,7 +40,7 @@ def str2bool(s):
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--dataset', required=True)
-parser.add_argument('--train_dir', required=True)
+parser.add_argument('--log_dir', required=True)
 parser.add_argument('--batch_size', default=128, type=int)
 parser.add_argument('--lr', default=0.001, type=float)
 parser.add_argument('--maxlen', default=50, type=int)
@@ -51,81 +53,79 @@ parser.add_argument('--l2_emb', default=0.00005, type=float)
 parser.add_argument('--device', default='cpu', type=str)
 parser.add_argument('--inference_only', default=False, type=str2bool)
 parser.add_argument('--state_dict_path', default=None, type=str)
-parser.add_argument('--time_span', default=256, type=int)
 parser.add_argument('--eval_epoch', default=20, type=int)
-parser.add_argument('--percentage', default=False, type=str2bool)
 parser.add_argument('--temporal', default=False, type=str2bool)
-parser.add_argument('--model', default=NORMAL_SASREC, choices=MODEL_NAMES, required=True)
+parser.add_argument('--model', choices=MODEL_NAMES, required=True)
 parser.add_argument('--loss_function', default=BCE, choices=LOSS_FUNCTIONS, required=True)
 parser.add_argument('--load_emb', default=False, type=str2bool)
 parser.add_argument('--frozen_item', default=False, type=str2bool)
 parser.add_argument('--finetune', default=False, type=str2bool)
 
 args = parser.parse_args()
-if not os.path.isdir(args.dataset + '_' + args.train_dir):
-    os.makedirs(args.dataset + '_' + args.train_dir)
-with open(os.path.join(args.dataset + '_' + args.train_dir, 'args.txt'), 'w') as f:
+if not os.path.isdir(args.log_dir):
+    os.makedirs(args.log_dir)
+with open(os.path.join(args.log_dir, 'args.txt'), 'w') as f:
     f.write('\n'.join([str(k) + ',' + str(v) for k, v in sorted(vars(args).items(), key=lambda x: x[0])]))
 f.close()
+
 if __name__ == '__main__':
     # dataset split
-    if args.percentage:
-        dataset = data_partition_window_InputTarget_byP(args.dataset, valid_percent=0.1, test_percent=0.1,
-                                                        train_percent=0.1)
-        [user_input, user_target, user_train, user_valid, user_test, usernum, itemnum, timenum] = dataset
+    # if args.percentage:
+    #     dataset = data_partition_window_InputTarget_byP(args.dataset, valid_percent=0.1, test_percent=0.1,
+    #                                                     train_percent=0.1)
+    #     [user_input, user_target, user_train, user_valid, user_test, usernum, itemnum, timenum] = dataset
     # temporal
-    elif args.temporal:
+    if args.temporal:
         dataset = data_partition_window_InputTarget_byT(args.dataset + '_train_withtime',
-                                                        args.dataset + '_target_withtime')
-        [user_input, user_target, usernum, itemnum, timenum, train_users, valid_users, test_users] = dataset
-
+                                                        args.dataset + '_target_withtime', args)
+        [user_input, user_target, usernum, itemnum, train_users, valid_users, test_users] = dataset
+        sample_train = user_input
     else:
         dataset = data_partition(args.dataset)
         [user_train, user_valid, user_test, usernum, itemnum] = dataset
         sample_train = user_train
     # Model Selection
-    model = T2V_SASRec(usernum, itemnum, args).to(args.device)
-    # if args.loss_function == BCE:
-    #     if args.model == NORMAL_SASREC:
-    #         # 1, 1
-    #         sample_train = user_input
-    #         model = TiSASRec(usernum, itemnum, itemnum, args).to(args.device)
-    #     else:
-    #         sample_train = user_input
-    #         if args.model == ALL_ACTION:
-    #             # final embedding focus
-    #             # num_pos, num_neg
-    #             model = TiAllAction(usernum, itemnum, itemnum, args).to(args.device)
-    #         elif args.model == DENSE_ALL_ACTION:
-    #             # 1, num neg
-    #             model = TiDenseAllAction(usernum, itemnum, itemnum, args).to(args.device)
-    #         elif args.model in [DENSE_ALL_PLUS, DENSE_ALL_PLUS_PLUS, INTEGRATED]:
-    #             # num_pos, num neg
-    #             model = TiDenseAllPlus(usernum, itemnum, itemnum, args).to(args.device)
-    #         else:
-    #             model = None
-    #             quit()
-    # else:
-    #     if args.model == NORMAL_SASREC:
-    #         # 1, 1
-    #         sample_train = user_input
-    #         model = TiSASRecSampledLoss(usernum, itemnum, itemnum, args).to(args.device)
-    #     else:
-    #         sample_train = user_input
-    #         if args.model == ALL_ACTION:
-    #             # final embedding focus
-    #             # num_pos, num_neg
-    #             model = TiAllActionSampledLoss(usernum, itemnum, itemnum, args).to(args.device)
-    #         elif args.model == DENSE_ALL_ACTION:
-    #             # 1, num neg
-    #             model = TiDenseAllActionSampledLoss(usernum, itemnum, itemnum, args).to(args.device)
-    #         elif args.model in [DENSE_ALL_PLUS, DENSE_ALL_PLUS_PLUS, INTEGRATED]:
-    #             # num_pos, num neg
-    #             model = TiDenseAllPlusSampledLoss(usernum, itemnum, itemnum, args).to(args.device)
-    #         else:
-    #             model = None
-    #             quit()
-
+    if args.loss_function == BCE:
+        if args.model == NORMAL_SASREC:
+            # 1, 1
+            sample_train = user_input
+            model = T2V_SASRec(usernum, itemnum, args).to(args.device)
+        else:
+            # window_predictor
+            sample_train = user_input
+            if args.model == ALL_ACTION:
+                # final embedding focus
+                # num_pos, num_neg
+                model = T2V_AllAction(usernum, itemnum,  args).to(args.device)
+            elif args.model == DENSE_ALL_ACTION:
+                # 1, num neg
+                model = T2V_DenseAllAction(usernum, itemnum, args).to(args.device)
+            elif args.model in [DENSE_ALL_PLUS, DENSE_ALL_PLUS_PLUS, INTEGRATED]:
+                # num_pos, num neg
+                model = T2V_DenseAllPlus(usernum, itemnum, args).to(args.device)
+            else:
+                model = None
+                quit()
+    else:
+        if args.model == NORMAL_SASREC:
+            # 1, 1
+            sample_train = user_input
+            model = T2V_SASRecSampledLoss(usernum, itemnum, args).to(args.device)
+        else:
+            sample_train = user_input
+            if args.model == ALL_ACTION:
+                # final embedding focus
+                # num_pos, num_neg
+                model = T2V_AllActionSampledLoss(usernum, itemnum, args).to(args.device)
+            elif args.model == DENSE_ALL_ACTION:
+                # 1, num neg
+                model = T2V_DenseAllActionSampledLoss(usernum, itemnum, args).to(args.device)
+            elif args.model in [DENSE_ALL_PLUS, DENSE_ALL_PLUS_PLUS, INTEGRATED]:
+                # num_pos, num neg
+                model = T2V_DenseAllPlusSampledLoss(usernum, itemnum, args).to(args.device)
+            else:
+                model = None
+                quit()
     print("Model : ", args.model)
     print("Loss : ", args.loss_function)
 
@@ -137,15 +137,18 @@ if __name__ == '__main__':
     print('number of unique users: %.2f' % usernum)
     print('number of unique items: %.2f' % itemnum)
 
-    f = open(os.path.join(args.dataset + '_' + args.train_dir, 'log.txt'), 'w')
+    f = open(os.path.join(args.log_dir, 'log.txt'), 'w')
     # Sampler Selection
-    sampler = WarpSampler(user_train, usernum, itemnum, batch_size=args.batch_size,
-                          maxlen=args.maxlen, n_workers=3)
+    if args.temporal:
+        # sampler used for temporal splitting data
+        sampler = WarpSamplerInputTarget_byT(user_input, user_target, train_users, usernum, itemnum,
+                                             args, batch_size=args.batch_size,
+                                             maxlen=args.maxlen, n_workers=3)
+    else:
+        # normal sampler
+        sampler = WarpSampler(sample_train, usernum, itemnum, batch_size=args.batch_size,
+                              maxlen=args.maxlen, n_workers=3)
 
-    # if args.temporal:
-    #     sampler = WarpSamplerInputTarget_byT(user_input, user_target, train_users, usernum, itemnum,
-    #                                          args, batch_size=args.batch_size,
-    #                                          maxlen=args.maxlen, n_workers=3)
     # else:
     #     if args.model in [NORMAL_SASREC]:
     #         sampler = WarpSampler(user_train, usernum, itemnum, batch_size=args.batch_size,
@@ -161,18 +164,26 @@ if __name__ == '__main__':
             torch.nn.init.xavier_uniform_(param.data)
         except:
             pass  # just ignore those failed init layers
-    # # load item embedding
-    # if args.load_emb:
-    #     source_model = SASRecSampledLoss(usernum, itemnum, args).to(args.device)
-    #     if 'ml-20m' in args.dataset:
-    #         source_model.load_state_dict(torch.load('item_emb/normal_sasrec.epoch=260.lr=0.001.'
-    #                                                 'layer=2.head=1.hidden=50.maxlen=50.pth'))
-    #     item_emb_param = source_model.item_emb.weight.data.clone()
-    #     model.item_emb.weight.data = item_emb_param
-    # # freeze item embedding
-    # if args.frozen_item:
-    #     for param in model.item_emb.parameters():
-    #         param.requires_grad = False
+
+    # load item embedding
+    if args.load_emb:
+        # source_model = T2V_SASRecSampledLoss(usernum, itemnum, args).to(args.device)
+        source_model = SASRecSampledLoss(usernum, itemnum, args).to(args.device)
+        if 'ml-20m' in args.dataset:
+
+            # source_model.load_state_dict(torch.load('experiments/item_emb/normal_sasrec.epoch=100.lr=0.003.layer=2'
+            #                                         '.head=1.hidden=50.maxlen=50.pth'))
+            source_model.load_state_dict(torch.load('experiments/item_emb/normal_sasrec.epoch=50.lr=0.001.layer=2'
+                                                    '.head=1.hidden=50.maxlen=200.pth'))
+        item_emb_param = source_model.item_emb.weight.data.clone()
+        model.item_emb.weight.data = item_emb_param
+        print("Load item embedding")
+
+    # freeze item embedding
+    if args.frozen_item:
+        for param in model.item_emb.parameters():
+            param.requires_grad = False
+        print("Frozen item embedding")
 
     model.train()  # enable model training
     epoch_start_idx = 1
@@ -187,9 +198,13 @@ if __name__ == '__main__':
 
     if args.inference_only:
         model.eval()
-        t_test = evaluate(model, dataset, args, 'test')
-        t_valid = evaluate(model, dataset, args, 'valid')
-        print('test (NDCG@10: %.4f, HR@10: %.4f)' % (t_test[0], t_test[1]))
+        if args.temporal:
+            t_test = evaluate_T(model, dataset, args, 'test')
+            t_valid = evaluate_T(model, dataset, args, 'valid')
+        else:
+            t_test = evaluate(model, dataset, args, 'test')
+            t_valid = evaluate(model, dataset, args, 'valid')
+        print('test (Recall@10: %.4f, P90: %.4f)' % (t_test[0], t_test[1]))
 
     bce_criterion = torch.nn.BCEWithLogitsLoss()
     # configure finetune
@@ -204,6 +219,7 @@ if __name__ == '__main__':
             {'params': item_emb_parameters, 'lr': item_emb_lr},
             {'params': other_parameters, 'lr': args.lr}
         ], betas=(0.9, 0.98))
+        print("Finetune item embedding")
     else:
         adam_optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, betas=(0.9, 0.98))
 
@@ -267,14 +283,14 @@ if __name__ == '__main__':
             T += t1
             print('Evaluating', end='')
             if args.temporal:
-                t_test = evaluate(model, dataset, args, 'test')
-                t_valid = evaluate(model, dataset, args, 'valid')
+                t_test = evaluate_T(model, dataset, args, 'test')
+                t_valid = evaluate_T(model, dataset, args, 'valid')
             else:
                 t_test = evaluate(model, dataset, args, 'test')
                 t_valid = evaluate(model, dataset, args, 'valid')
                 # t_test = evaluate_window(model, dataset, args, 'test')
                 # t_valid = evaluate_window(model, dataset, args, 'valid')
-            print('epoch:%d, time: %f(s), valid (NDCG@10: %.4f, HR@10: %.4f), test (NDCG@10: %.4f, HR@10: %.4f)'
+            print('epoch:%d, time: %f(s), valid (R@10: %.4f, P90: %.4f), test (R@10: %.4f, P90: %.4f)'
                   % (epoch, T, t_valid[0], t_valid[1], t_test[0], t_test[1]))
             f.write(str(t_valid) + ' ' + str(t_test) + '\n')
             f.flush()
@@ -282,9 +298,10 @@ if __name__ == '__main__':
             model.train()
 
         if epoch == args.num_epochs:
-            folder = args.dataset + '_' + args.train_dir
-            fname = 'TiSASRec.epoch={}.lr={}.layer={}.head={}.hidden={}.maxlen={}.pth'
-            fname = fname.format(args.num_epochs, args.lr, args.num_blocks, args.num_heads, args.hidden_units,
+            folder = args.log_dir
+            fname = '{}.epoch={}.lr={}.layer={}.head={}.hidden={}.maxlen={}.pth'
+            fname = fname.format(args.model, args.num_epochs, args.lr, args.num_blocks, args.num_heads,
+                                 args.hidden_units,
                                  args.maxlen)
             torch.save(model.state_dict(), os.path.join(folder, fname))
 

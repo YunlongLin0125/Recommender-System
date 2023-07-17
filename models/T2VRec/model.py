@@ -36,6 +36,7 @@ class Time2vec(nn.Module):
         part1 = self.act(self.wnbn(x))
         return torch.cat([part0, part1], -1)
 
+
 # class Time2Vec_abs(torch.nn.Module):
 #     def __init__(self, periods, args):
 #         super(Time2Vec_abs, self).__init__()
@@ -197,7 +198,8 @@ class T2V_SASRec(torch.nn.Module):
         # (batch_size, sequence_length, hidden_units)
         pos_logits = (log_feats * pos_embs).sum(dim=-1)
         # score for positive engagement = (batch_size, sequence_length)
-        neg_logits = (log_feats * neg_embs).sum(dim=-1)
+        neg_logits = (log_feats.unsqueeze(2) * neg_embs).sum(dim=-1)
+
         # score for negative engagement = (batch_size, sequence_length)
         return pos_logits, neg_logits  # pos_pred, neg_pred
 
@@ -227,3 +229,110 @@ class T2V_AllAction(T2V_SASRec):  # similar to torch.nn.MultiheadAttention
         return pos_logits, neg_logits  # pos_pred, neg_pred
 
 
+class T2V_DenseAllAction(T2V_SASRec):  # similar to torch.nn.MultiheadAttention
+    def forward(self, user_ids, log_seqs, time_seqs, pos_seqs, neg_seqs):
+        # 1 pos, num_neg
+        log_feats = self.seq2feats(log_seqs, time_seqs)
+        # log_feats.shape = [batch_size, seq_len, hidden_units]
+        # pos_seqs.shape = [batch_size, seq_len]
+        # neg_seqs.shape = [batch_size, seq_len]
+        # get the last item in the sequence
+        pos_embs = self.item_emb(torch.LongTensor(pos_seqs).to(self.dev))
+        # pos_embs.shape = (batch_size, seq_len, hidden_units)
+        neg_embs = self.item_emb(torch.LongTensor(neg_seqs).to(self.dev))
+        # neg_embs.shape = (batch_size, seq_len, neg_nums, hidden_units)
+        # print(neg_embs.shape)
+        # print(log_feats.shape)
+        # print(log_feats.unsqueeze(2).shape)
+        pos_embs = pos_embs.squeeze(-2)
+        pos_logits = (log_feats * pos_embs).sum(dim=-1)
+        # pos_logits.shape = (batch_size, seq_len)
+        neg_logits = (log_feats.unsqueeze(2) * neg_embs).sum(dim=-1)
+        # log_feats.unsqueeze(2).shape = [batch_size, seq_len, 1, hidden_units]
+        # neg_logits.shape = (batch_size, seq_len, neg_nums)
+        # pos_logits = pos_logits.unsqueeze(-1)
+        return pos_logits, neg_logits
+
+
+class T2V_DenseAllPlus(T2V_SASRec):  # similar to torch.nn.MultiheadAttention
+    # Dense all +, dense all ++, combined
+    def forward(self, user_ids, log_seqs, time_seqs, pos_seqs, neg_seqs):
+        # num_pos, num_neg
+        log_feats = self.seq2feats(log_seqs, time_seqs)
+        pos_embs = self.item_emb(torch.LongTensor(pos_seqs).to(self.dev))
+        neg_embs = self.item_emb(torch.LongTensor(neg_seqs).to(self.dev))
+        pos_logits = (log_feats.unsqueeze(2) * pos_embs).sum(dim=-1)
+        neg_logits = (log_feats.unsqueeze(2) * neg_embs).sum(dim=-1)
+        return pos_logits, neg_logits
+
+
+class T2V_SASRecSampledLoss(T2V_SASRec):
+    def __init__(self, user_num, item_num, args):
+        super().__init__(user_num, item_num, args)
+        initial_temperature = 1.0  # you can choose any initial value depending on your problem
+        self.temperature = torch.nn.Parameter(torch.tensor([initial_temperature], device=self.dev))
+
+    def forward(self, user_ids, log_seqs, time_seqs, pos_seqs, neg_seqs):  # for training
+        log_feats = self.seq2feats(log_seqs, time_seqs)  # user_ids hasn't been used yet
+        # (batch_size, sequence_length, hidden_units)
+        pos_embs = self.item_emb(torch.LongTensor(pos_seqs).to(self.dev))
+        # (batch_size, sequence_length, hidden_units)
+        neg_embs = self.item_emb(torch.LongTensor(neg_seqs).to(self.dev))
+        # (batch_size, sequence_length, hidden_units)
+        pos_logits = (log_feats * pos_embs).sum(dim=-1) / self.temperature
+        # score for positive engagement = (batch_size, sequence_length)
+        neg_logits = (log_feats.unsqueeze(2) * neg_embs).sum(dim=-1) / self.temperature
+        # score for negative engagement = (batch_size, sequence_length)
+        return pos_logits, neg_logits  # pos_pred, neg_pred
+
+
+class T2V_AllActionSampledLoss(T2V_SASRecSampledLoss):
+    def forward(self, user_ids, log_seqs, time_seqs, pos_seqs, neg_seqs):  # for training
+        log_feats = self.seq2feats(log_seqs, time_seqs)
+        final_feat = log_feats[:, -1, :]
+        # features obtained: embedding including time features
+        pos_embs = self.item_emb(torch.LongTensor(pos_seqs).to(self.dev))[:, -1, :]
+        neg_embs = self.item_emb(torch.LongTensor(neg_seqs).to(self.dev))[:, -1, :]
+        # print(final_feat.shape)
+        # print(pos_embs.shape)
+        pos_logits = (final_feat.unsqueeze(1) * pos_embs).sum(dim=-1) / self.temperature
+        neg_logits = (final_feat.unsqueeze(1) * neg_embs).sum(dim=-1) / self.temperature
+        # pos_pred = self.pos_sigmoid(pos_logits)
+        # neg_pred = self.neg_sigmoid(neg_logits)
+        return pos_logits, neg_logits  # pos_pred, neg_pred
+
+
+class T2V_DenseAllActionSampledLoss(T2V_SASRecSampledLoss):
+    def forward(self, user_ids, log_seqs, time_seqs, pos_seqs, neg_seqs):
+        # 1 pos, num_neg
+        log_feats = self.seq2feats(log_seqs, time_seqs)
+        # log_feats.shape = [batch_size, seq_len, hidden_units]
+        # pos_seqs.shape = [batch_size, seq_len]
+        # neg_seqs.shape = [batch_size, seq_len]
+        # get the last item in the sequence
+        pos_embs = self.item_emb(torch.LongTensor(pos_seqs).to(self.dev))
+        # pos_embs.shape = (batch_size, seq_len, hidden_units)
+        neg_embs = self.item_emb(torch.LongTensor(neg_seqs).to(self.dev))
+        # neg_embs.shape = (batch_size, seq_len, neg_nums, hidden_units)
+        # print(neg_embs.shape)
+        # print(log_feats.shape)
+        # print(log_feats.unsqueeze(2).shape)
+        pos_embs = pos_embs.squeeze(-2)
+        pos_logits = (log_feats * pos_embs).sum(dim=-1) / self.temperature
+        # pos_logits.shape = (batch_size, seq_len)
+        neg_logits = (log_feats.unsqueeze(2) * neg_embs).sum(dim=-1) / self.temperature
+        # log_feats.unsqueeze(2).shape = [batch_size, seq_len, 1, hidden_units]
+        # neg_logits.shape = (batch_size, seq_len, neg_nums)
+        # pos_logits = pos_logits.unsqueeze(-1)
+        return pos_logits, neg_logits
+
+
+class T2V_DenseAllPlusSampledLoss(T2V_SASRecSampledLoss):
+    def forward(self, user_ids, log_seqs, time_seqs, pos_seqs, neg_seqs):
+        # num_pos, num_neg
+        log_feats = self.seq2feats(log_seqs, time_seqs)
+        pos_embs = self.item_emb(torch.LongTensor(pos_seqs).to(self.dev))
+        neg_embs = self.item_emb(torch.LongTensor(neg_seqs).to(self.dev))
+        pos_logits = (log_feats.unsqueeze(2) * pos_embs).sum(dim=-1) / self.temperature
+        neg_logits = (log_feats.unsqueeze(2) * neg_embs).sum(dim=-1) / self.temperature
+        return pos_logits, neg_logits
