@@ -43,7 +43,7 @@ class TimeEncoder_abs(torch.nn.Module):
         # Set the periods for absolute and relative time
         self.P_abs = 12
         # The vector phi is a learned parameter
-        self.phi = nn.Parameter(torch.Tensor(2 * self.P_abs))
+        self.phi = nn.Parameter(torch.randn(2 * self.P_abs) * 0.01)
         # Manually chosen periods of real-life importance
         self.abs_periods = (torch.tensor([0.25, 0.5, 0.75, 1, 2, 4, 8, 16, 24, 168, 672, 8760],
                                          dtype=torch.float32) * 3600).to(args.device)
@@ -58,6 +58,11 @@ class TimeEncoder_abs(torch.nn.Module):
         t = t.float()
         periods = periods.unsqueeze(0).unsqueeze(0)
         features = []
+        if torch.any(t < -1):
+            raise ValueError("t should be greater than or equal to -1")
+        if torch.any(periods <= 0):
+            raise ValueError("Periods should be greater than 0")
+
         for i in range(1, P + 1):
             pi = periods[..., i - 1]
             phi_2i_minus_1 = self.phi[2 * i - 2]
@@ -74,16 +79,17 @@ class TimeEncoder_rel(TimeEncoder_abs):
         # Set the periods for absolute and relative time
         self.P_rel = 32
         # The vector phi is a learned parameter
-        self.phi = nn.Parameter(torch.Tensor(2 * self.P_rel))
+        self.phi = nn.Parameter(torch.randn(2 * self.P_rel) * 0.01)
         # Manually chosen periods of real-life importance
-        self.rel_periods = torch.logspace(np.log10(1), np.log10(4*7*24*3600), self.P_rel).float()
+        # self.rel_periods = (torch.tensor([0.25, 0.5, 0.75, 1, 2, 4, 8, 16, 24, 168, 672, 8760],
+        #                                  dtype=torch.float32) * 3600).to(args.device)
+        self.rel_periods = torch.logspace(np.log10(1), np.log10(4 * 7 * 24 * 3600), self.P_rel).to(args.device)
         # Log scale periods for relative time difference
 
     def forward(self, t):
         # Calculate the features for absolute and relative time
-        r_abs = self.encode_time(t, self.P_rel, self.rel_periods)
-        return r_abs
-
+        r_rel = self.encode_time(t, self.P_rel, self.rel_periods)
+        return r_rel
 
 
 # class Time2Vec_abs(torch.nn.Module):
@@ -155,10 +161,10 @@ class T2V_SASRec(torch.nn.Module):
         self.item_emb = torch.nn.Embedding(self.item_num + 1, args.hidden_units, padding_idx=0)
         self.pos_emb = torch.nn.Embedding(args.maxlen, args.hidden_units)  # TO IMPROVE
         self.emb_dropout = torch.nn.Dropout(p=args.dropout_rate)
-
         # self.t2v_cos = Time2vec(1, args.hidden_units, activation='cos')
         # self.t2v_sin = Time2vec(1, args.hidden_units, activation='sin')
-        self.t2v_abs = TimeEncoder_abs(args)
+        # self.t2v_abs = TimeEncoder_abs(args)
+        self.t2v_rel = TimeEncoder_rel(args)
         self.attention_layernorms = torch.nn.ModuleList()  # to be Q for self-attention
         self.attention_layers = torch.nn.ModuleList()
         self.forward_layernorms = torch.nn.ModuleList()
@@ -166,7 +172,7 @@ class T2V_SASRec(torch.nn.Module):
         self.last_layernorm = torch.nn.LayerNorm(args.hidden_units, eps=1e-8)
         # Linear layer to project the combined vector
         # self.projection = torch.nn.Linear(args.hidden_units * 2, args.hidden_units)
-        self.projection = torch.nn.Linear(args.hidden_units + 25, args.hidden_units)
+        self.projection = torch.nn.Linear(args.hidden_units + 65, args.hidden_units)
         # Two-layer MLP
         self.mlp = torch.nn.Sequential(
             torch.nn.Linear(args.hidden_units, 4 * args.hidden_units),
@@ -176,7 +182,6 @@ class T2V_SASRec(torch.nn.Module):
         for _ in range(args.num_blocks):
             new_attn_layernorm = torch.nn.LayerNorm(args.hidden_units, eps=1e-8)
             self.attention_layernorms.append(new_attn_layernorm)
-
             new_attn_layer = torch.nn.MultiheadAttention(args.hidden_units,
                                                          args.num_heads,
                                                          args.dropout_rate)
@@ -198,16 +203,18 @@ class T2V_SASRec(torch.nn.Module):
         # print(t_seqs.shape)
         # print(t_seqs)
         # print(time_seqs[-1, -1])
-        t_seqs = self.t2v_abs(torch.LongTensor(time_seqs).unsqueeze(-1).to(self.dev))
-        # print(t_seqs[-1, -1])
-        # t_seqs = self.t2v_cos(torch.FloatTensor(time_seqs).unsqueeze(-1).to(self.dev))
-        # print(t_seqs)
-        # t_seqs = self.t2v_sin(torch.FloatTensor(time_seqs).unsqueeze(-1).to(self.dev))
-        # time features
+        # t_abs = self.t2v_abs(torch.LongTensor(time_seqs[..., 0]).unsqueeze(-1).to(self.dev))
+        t_rel = self.t2v_rel(torch.LongTensor(time_seqs[..., -1]).unsqueeze(-1).to(self.dev))
+        # print(t_abs.shape)
+        # print(t_rel.shape)
+        # t_seqs = self.t2v_abs(torch.LongTensor(time_seqs[..., 0]).unsqueeze(-1).to(self.dev))
         # t_seqs.shape = [batch_size, seq_len, num_features]
         # scale the values
+        # print(t_abs[-1, -1])
+        # print(t_rel[-1, -1])
         seqs *= self.item_emb.embedding_dim ** 0.5
-        seqs = torch.cat([seqs, t_seqs], -1)
+        seqs = torch.cat([seqs, t_rel], -1)
+        # print(seqs.shape)
         seqs = self.projection(seqs)
         # transform it back to hidden units
         positions = np.tile(np.array(range(log_seqs.shape[1])), [log_seqs.shape[0], 1])
