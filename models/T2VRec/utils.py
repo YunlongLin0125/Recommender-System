@@ -39,7 +39,7 @@ def sample_function(user_train, usernum, itemnum, batch_size, maxlen, result_que
         for i in reversed(user_train[user][:-1]):
             # i : (item, timestamp)
             seq[idx] = i[0]
-            time_seq[idx] = i[1]
+            time_seq[idx] = [i[1][0], i[1][1]]
             pos[idx] = nxt
             if nxt != 0:
                 neg[idx] = random_neq(1, itemnum + 1, ts)
@@ -98,7 +98,7 @@ def sample_function_input_target(user_train, train_target, usernum, itemnum,
             for i in reversed(user_train[user]):
                 # i : (item, timestamp)
                 seq[idx] = i[0]
-                time_seq[idx] = i[1]
+                time_seq[idx] = [i[1][0], i[1][1]]
                 if args.model == ALL_ACTION:
                     if idx == maxlen - 1:
                         pos[idx] = target_seq
@@ -118,7 +118,7 @@ def sample_function_input_target(user_train, train_target, usernum, itemnum,
             for i in reversed(user_train[user][:-1]):
                 # fill the seq with all interacted except the last item as the target action
                 seq[idx] = i[0]
-                time_seq[idx] = i[1]
+                time_seq[idx] = [i[1][0], i[1][1]]
                 if args.model == DENSE_ALL_PLUS_PLUS:
                     if nxt != 0:
                         pos[idx] = [nxt] + target_seq
@@ -246,7 +246,7 @@ def sample_function_input_target_byT(user_train, train_target, train_ids, usernu
             for i in reversed(user_train[user]):
                 # fill the seq with all interacted except the last item as the target action
                 seq[idx] = i[0]  # [x,x,x,x,x,x,#]
-                time_seq[idx] = i[1]
+                time_seq[idx] = [i[1][0], i[1][1]]
                 # feed pos
                 if args.model == ALL_ACTION:
                     if idx == maxlen - 1:
@@ -267,7 +267,7 @@ def sample_function_input_target_byT(user_train, train_target, train_ids, usernu
             for i in reversed(user_train[user][:-1]):
                 # fill the seq with all interacted except the last item as the target action
                 seq[idx] = i[0]  # [x,x,x,x,x,x,#]
-                time_seq[idx] = i[1]
+                time_seq[idx] = [i[1][0], i[1][1]]
                 if args.model == DENSE_ALL_PLUS_PLUS:
                     if nxt != 0:
                         pos[idx] = [nxt] + target_seq
@@ -639,7 +639,7 @@ def evaluate_window(model, dataset, args, eval_type='valid'):
         for i in reversed(input_seq):
             # fill the input sequence from the list tail
             seq[idx] = i[0]
-            time_seq[idx] = i[1]
+            time_seq[idx] = [i[1][0], i[1][1]]
             idx -= 1
             if idx == -1:
                 break
@@ -701,7 +701,7 @@ def evaluate(model, dataset, args, eval_type='valid'):
         for i in reversed(input_seq):
             # fill the input sequence from the list tail
             seq[idx] = i[0]
-            time_seq[idx] = i[1]
+            time_seq[idx] = [i[1][0], i[1][1]]
             idx -= 1
             if idx == -1:
                 break
