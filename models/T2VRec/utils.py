@@ -375,12 +375,24 @@ class WarpSamplerInputTarget_byT(object):
             p.join()
 
 
-def time_feature_creation(User):
+def time_feature_creation_abs(User):
     # absolute time feature
     print("Time feature deriving: Abs")
     for user in User:
         time_max = max(list(map(lambda x: x[1], User[user])))
         User[user] = [(item, time_max - time) for item, time in User[user]]
+    print("feature Done")
+
+
+def time_feature_creation_rel(User):
+    # relative time feature
+    print("Time feature deriving: Rel")
+    for user in User:
+        items = list(map(lambda x: x[0], User[user]))
+        timestamps = list(map(lambda x: x[1], User[user]))
+        time_gaps = [timestamps[i + 1] - timestamps[i] for i in range(len(timestamps) - 1)]
+        time_gaps.append(0)
+        User[user] = list(zip(items, time_gaps))
     print("feature Done")
 
 

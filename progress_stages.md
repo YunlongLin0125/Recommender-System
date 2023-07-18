@@ -315,6 +315,8 @@ Results are collected by best in valid dataset and correcsponding test
 ## 718 (Tue.)
 
 ```
+1. figure out the abs timestamp and rel timestamp
+2. try implement the timeseqs include two features
 ```
 
 
