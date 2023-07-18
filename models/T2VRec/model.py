@@ -163,7 +163,7 @@ class T2V_SASRec(torch.nn.Module):
         self.emb_dropout = torch.nn.Dropout(p=args.dropout_rate)
         # self.t2v_cos = Time2vec(1, args.hidden_units, activation='cos')
         # self.t2v_sin = Time2vec(1, args.hidden_units, activation='sin')
-        # self.t2v_abs = TimeEncoder_abs(args)
+        self.t2v_abs = TimeEncoder_abs(args)
         self.t2v_rel = TimeEncoder_rel(args)
         self.attention_layernorms = torch.nn.ModuleList()  # to be Q for self-attention
         self.attention_layers = torch.nn.ModuleList()
@@ -172,7 +172,7 @@ class T2V_SASRec(torch.nn.Module):
         self.last_layernorm = torch.nn.LayerNorm(args.hidden_units, eps=1e-8)
         # Linear layer to project the combined vector
         # self.projection = torch.nn.Linear(args.hidden_units * 2, args.hidden_units)
-        self.projection = torch.nn.Linear(args.hidden_units + 65, args.hidden_units)
+        self.projection = torch.nn.Linear(args.hidden_units + 25 + 65, args.hidden_units)
         # Two-layer MLP
         self.mlp = torch.nn.Sequential(
             torch.nn.Linear(args.hidden_units, 4 * args.hidden_units),
@@ -203,7 +203,7 @@ class T2V_SASRec(torch.nn.Module):
         # print(t_seqs.shape)
         # print(t_seqs)
         # print(time_seqs[-1, -1])
-        # t_abs = self.t2v_abs(torch.LongTensor(time_seqs[..., 0]).unsqueeze(-1).to(self.dev))
+        t_abs = self.t2v_abs(torch.LongTensor(time_seqs[..., 0]).unsqueeze(-1).to(self.dev))
         t_rel = self.t2v_rel(torch.LongTensor(time_seqs[..., -1]).unsqueeze(-1).to(self.dev))
         # print(t_abs.shape)
         # print(t_rel.shape)
@@ -213,7 +213,7 @@ class T2V_SASRec(torch.nn.Module):
         # print(t_abs[-1, -1])
         # print(t_rel[-1, -1])
         seqs *= self.item_emb.embedding_dim ** 0.5
-        seqs = torch.cat([seqs, t_rel], -1)
+        seqs = torch.cat([seqs, t_abs, t_rel], -1)
         # print(seqs.shape)
         seqs = self.projection(seqs)
         # transform it back to hidden units
