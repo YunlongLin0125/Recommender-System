@@ -367,18 +367,23 @@ def time_feature_creation_rel(User):
     print("feature Done")
 
 
-def feature_generation(User):
+def feature_generation(User, all_max):
     print("Time feature deriving: Rel & Abs")
     for user in User:
         items = list(map(lambda x: x[0], User[user]))
+        # raw timestamps (abs)
         timestamps = list(map(lambda x: x[1], User[user]))
-        # abs
+        # time diff (rel)
         time_max = max(timestamps)
         time_diff = [time_max - time for time in timestamps]
-        # rel
+
+        # time gap (rel)
         time_gaps = [timestamps[i + 1] - timestamps[i] for i in range(len(timestamps) - 1)]
         time_gaps.append(0)
-        time_feats = list(zip(timestamps, time_diff, time_gaps))
+        # scaled raw timestamps (abs)
+        scaled_timestamps = [all_max - time for time in timestamps]
+
+        time_feats = list(zip(scaled_timestamps, time_diff, time_gaps))
         User[user] = list(zip(items, time_feats))
     print("feature Done")
 
@@ -557,6 +562,7 @@ def data_partition_window_InputTarget_byT(f_train, f_target, args):
     train_split = 0.7
     valid_split = 0.85
     f = open('data/%s.txt' % f_train, 'r')
+    time_set = set()
     print('Preparing data...')
     # read the input sequence
     for line in f:
@@ -571,10 +577,10 @@ def data_partition_window_InputTarget_byT(f_train, f_target, args):
         usernum = max(u, usernum)
         itemnum = max(i, itemnum)
         user_input[u].append([i, timestamp])
+        time_set.add(timestamp)
         # include the time feature
     f.close()
     print("Input Read Done")
-    print("Time Scaled Done!")
     f = open('data/%s.txt' % f_target, 'r')
     # read from the target window
     for line in f:
@@ -602,7 +608,7 @@ def data_partition_window_InputTarget_byT(f_train, f_target, args):
         # next item prediction focus on the whole train seq rather than only input sequence.
         connect_input_target(user_input, user_target, train_users)
 
-    feature_generation(user_input)
+    feature_generation(user_input, max(time_set))
     print("Data processing Done")
     return [user_input, user_target, usernum, itemnum,
             train_users, valid_users, test_users]

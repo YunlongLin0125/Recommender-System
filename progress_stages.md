@@ -321,6 +321,53 @@ Results are collected by best in valid dataset and correcsponding test
 
 
 
+## 719 (Wed.)
+
+```
+Clarify Pinnerformer:
+1. raw timestamp(abs) 25 dims
+2. Time Difference(rel) 65 dims
+3. Time Gap(rel) 65 dims
+
+Train a normal sasrec from scratch (not well performed)
+```
+
+## 720 (Thur.)
+
+```
+1. Run pinnerformer struture (time features[raw, time_diff, time_gap]) for transfer learning.
+2. try replace raw timestamps with scaled raw timestamps
+2. Figure out what need to be done, run formal experiments.
+3. P90 Coverage@10
+```
+
+
+
+## 721 (Fri.)
+
+```
+1. Run Formal Experiments
+2. Slides Making
+```
+
+
+
+# Formal Experiments
+
+```
+1. Next item prediction vs window predictor (Show the problem of window-predictor)____Train from Scratch
+1.5 *(SASRec-sampled)
+2. Increase the singal intensity in the network (window-predictor trainining objective) _____Train From Scratch
+3. BCE vs. Sampled Softmax Loss (Loss function choice)_____Train From Scratch
+4. Learning Rate (learning rate choice)_____Train From Scratch
+5. train from scratch vs. transfer learning (Method proposed inspired by supervisor and Pinnerformer)
+6. data split by percentage vs. split by time (window-choice)
+7. time-ignorance vs. t2v (influence of time features)
+8. Timestamps encoding. (time features choice)
+```
+
+
+
 # TODO
 
 1. incorporate relative time features.
