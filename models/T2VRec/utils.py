@@ -26,11 +26,10 @@ def random_neq(l, r, s, num=1):
         return ts
 
 
-
 def sample_function(user_train, usernum, itemnum, batch_size, maxlen, result_queue, SEED):
     def sample(user):
         seq = np.zeros([maxlen], dtype=np.int32)
-        time_seq = np.zeros([maxlen, 2], dtype=np.int32)
+        time_seq = np.zeros([maxlen, 3], dtype=np.int32)
         pos = np.zeros([maxlen], dtype=np.int32)
         neg = np.zeros([maxlen], dtype=np.int32)
         nxt = user_train[user][-1][0]
@@ -39,7 +38,7 @@ def sample_function(user_train, usernum, itemnum, batch_size, maxlen, result_que
         for i in reversed(user_train[user][:-1]):
             # i : (item, timestamp)
             seq[idx] = i[0]
-            time_seq[idx] = [i[1][0], i[1][1]]
+            time_seq[idx] = [i[1][0], i[1][1], i[1][2]]
             pos[idx] = nxt
             if nxt != 0:
                 neg[idx] = random_neq(1, itemnum + 1, ts)
@@ -67,7 +66,7 @@ def sample_function_input_target(user_train, train_target, usernum, itemnum,
         idx = maxlen - 1
         target_seq = train_target[user]
         seq = np.zeros([maxlen], dtype=np.int32)
-        time_seq = np.zeros([maxlen, 2], dtype=np.int32)
+        time_seq = np.zeros([maxlen, 3], dtype=np.int32)
         sample_actions = 32
         target_seq = [x[0] for x in target_seq]
         # select all item ids
@@ -98,7 +97,7 @@ def sample_function_input_target(user_train, train_target, usernum, itemnum,
             for i in reversed(user_train[user]):
                 # i : (item, timestamp)
                 seq[idx] = i[0]
-                time_seq[idx] = [i[1][0], i[1][1]]
+                time_seq[idx] = [i[1][0], i[1][1], i[1][2]]
                 if args.model == ALL_ACTION:
                     if idx == maxlen - 1:
                         pos[idx] = target_seq
@@ -118,7 +117,7 @@ def sample_function_input_target(user_train, train_target, usernum, itemnum,
             for i in reversed(user_train[user][:-1]):
                 # fill the seq with all interacted except the last item as the target action
                 seq[idx] = i[0]
-                time_seq[idx] = [i[1][0], i[1][1]]
+                time_seq[idx] = [i[1][0], i[1][1], i[1][2]]
                 if args.model == DENSE_ALL_PLUS_PLUS:
                     if nxt != 0:
                         pos[idx] = [nxt] + target_seq
@@ -238,7 +237,7 @@ def sample_function_input_target_byT(user_train, train_target, train_ids, usernu
             print("wrong model")
             quit()
         seq = np.zeros([maxlen], dtype=np.int32)
-        time_seq = np.zeros([maxlen, 2], dtype=np.int32)
+        time_seq = np.zeros([maxlen, 3], dtype=np.int32)
         pos = np.zeros([maxlen, num_pos], dtype=np.int32)
         neg = np.zeros([maxlen, num_neg], dtype=np.int32)
         if args.model in [ALL_ACTION, DENSE_ALL_ACTION, DENSE_ALL_PLUS]:
@@ -246,7 +245,7 @@ def sample_function_input_target_byT(user_train, train_target, train_ids, usernu
             for i in reversed(user_train[user]):
                 # fill the seq with all interacted except the last item as the target action
                 seq[idx] = i[0]  # [x,x,x,x,x,x,#]
-                time_seq[idx] = [i[1][0], i[1][1]]
+                time_seq[idx] = [i[1][0], i[1][1], i[1][2]]
                 # feed pos
                 if args.model == ALL_ACTION:
                     if idx == maxlen - 1:
@@ -267,7 +266,7 @@ def sample_function_input_target_byT(user_train, train_target, train_ids, usernu
             for i in reversed(user_train[user][:-1]):
                 # fill the seq with all interacted except the last item as the target action
                 seq[idx] = i[0]  # [x,x,x,x,x,x,#]
-                time_seq[idx] = [i[1][0], i[1][1]]
+                time_seq[idx] = [i[1][0], i[1][1], i[1][2]]
                 if args.model == DENSE_ALL_PLUS_PLUS:
                     if nxt != 0:
                         pos[idx] = [nxt] + target_seq
@@ -284,7 +283,7 @@ def sample_function_input_target_byT(user_train, train_target, train_ids, usernu
         elif args.model in [NORMAL_SASREC, SASREC_SAMPLED]:
             num_neg = 1
             seq = np.zeros([maxlen], dtype=np.int32)
-            time_seq = np.zeros([maxlen, 2], dtype=np.int32)
+            time_seq = np.zeros([maxlen, 3], dtype=np.int32)
             pos = np.zeros([maxlen], dtype=np.int32)
             neg = np.zeros([maxlen, num_neg], dtype=np.int32)
             # already handled during the data partition task
@@ -295,7 +294,7 @@ def sample_function_input_target_byT(user_train, train_target, train_ids, usernu
                 # fill the seq with all interacted except the last item as the target action
                 # i started by user_train[user][-2]
                 seq[idx] = i[0]
-                time_seq[idx] = [i[1][0], i[1][1]]
+                time_seq[idx] = [i[1][0], i[1][1], i[1][2]]
                 # (abs_feat, rel_feat)
                 pos[idx] = nxt
                 if nxt != 0:
@@ -379,7 +378,7 @@ def feature_generation(User):
         # rel
         time_gaps = [timestamps[i + 1] - timestamps[i] for i in range(len(timestamps) - 1)]
         time_gaps.append(0)
-        time_feats = list(zip(time_diff, time_gaps))
+        time_feats = list(zip(timestamps, time_diff, time_gaps))
         User[user] = list(zip(items, time_feats))
     print("feature Done")
 
@@ -609,70 +608,70 @@ def data_partition_window_InputTarget_byT(f_train, f_target, args):
             train_users, valid_users, test_users]
 
 
-def evaluate_window(model, dataset, args, eval_type='valid'):
-    if args.model not in [NORMAL_SASREC, SASREC_SAMPLED]:
-        [_, _, train, valid, test, usernum, itemnum, timenum] = copy.deepcopy(dataset)
-    else:
-        [_, _, train, valid, test, usernum, itemnum, timenum] = copy.deepcopy(dataset)
-    # train.shape = [user_num, seq_num, (itemid, timestamp)]
-    Recall = 0.0
-    Recall_U = 0.0
-    valid_user = 0.0
-    sample_nums = 500
-    if usernum > 10000:
-        users = random.sample(range(1, usernum + 1), 10000)
-    else:
-        users = range(1, usernum + 1)
-    for u in users:
-        if eval_type == 'valid':
-            input_seq = train[u]
-            target_seq = [x[0] for x in valid[u]]
-            # target sequence only includes the item indexes
-        else:
-            input_seq = train[u] + valid[u]
-            target_seq = [x[0] for x in test[u]]
-        if len(input_seq) < 1 or len(target_seq) < 1:
-            continue
-        seq = np.zeros([args.maxlen], dtype=np.int32)
-        time_seq = np.zeros([args.maxlen, 2], dtype=np.int32)
-        idx = args.maxlen - 1
-        for i in reversed(input_seq):
-            # fill the input sequence from the list tail
-            seq[idx] = i[0]
-            time_seq[idx] = [i[1][0], i[1][1]]
-            idx -= 1
-            if idx == -1:
-                break
-        rated = set(map(lambda x: x[0], input_seq))
-        rated.update(target_seq)
-        rated.add(0)
-        neg = []
-        for _ in range(sample_nums):
-            t = np.random.randint(1, itemnum + 1)
-            while t in rated: t = np.random.randint(1, itemnum + 1)
-            neg.append(t)
-        target_num = len(target_seq)
-        item_idx = target_seq + neg
-        time_matrix = computeRePos(time_seq, args.time_span)
-        predictions = -model.predict(*[np.array(l) for l in [[u], [seq], [time_matrix], item_idx]])[0]
-        # target distance
-        target_ds = predictions[:target_num]
-        # sampled results
-        sample_d = predictions[target_num:]
-        for target_d in target_ds:
-            bool_tensor = target_d >= sample_d
-            count = torch.sum(bool_tensor).item()
-            if count < 10:
-                Recall_U += 1
-        Recall_U = Recall_U / target_num
-        Recall += Recall_U
-        Recall_U = 0
-        # take the coverage@10 for all users
-        valid_user += 1
-        if valid_user % 100 == 0:
-            print('.', end="")
-            sys.stdout.flush()
-    return Recall / valid_user, 0.66
+# def evaluate_window(model, dataset, args, eval_type='valid'):
+#     if args.model not in [NORMAL_SASREC, SASREC_SAMPLED]:
+#         [_, _, train, valid, test, usernum, itemnum, timenum] = copy.deepcopy(dataset)
+#     else:
+#         [_, _, train, valid, test, usernum, itemnum, timenum] = copy.deepcopy(dataset)
+#     # train.shape = [user_num, seq_num, (itemid, timestamp)]
+#     Recall = 0.0
+#     Recall_U = 0.0
+#     valid_user = 0.0
+#     sample_nums = 500
+#     if usernum > 10000:
+#         users = random.sample(range(1, usernum + 1), 10000)
+#     else:
+#         users = range(1, usernum + 1)
+#     for u in users:
+#         if eval_type == 'valid':
+#             input_seq = train[u]
+#             target_seq = [x[0] for x in valid[u]]
+#             # target sequence only includes the item indexes
+#         else:
+#             input_seq = train[u] + valid[u]
+#             target_seq = [x[0] for x in test[u]]
+#         if len(input_seq) < 1 or len(target_seq) < 1:
+#             continue
+#         seq = np.zeros([args.maxlen], dtype=np.int32)
+#         time_seq = np.zeros([args.maxlen, 3], dtype=np.int32)
+#         idx = args.maxlen - 1
+#         for i in reversed(input_seq):
+#             # fill the input sequence from the list tail
+#             seq[idx] = i[0]
+#             time_seq[idx] = [i[1][0], i[1][1], i[1][2]]
+#             idx -= 1
+#             if idx == -1:
+#                 break
+#         rated = set(map(lambda x: x[0], input_seq))
+#         rated.update(target_seq)
+#         rated.add(0)
+#         neg = []
+#         for _ in range(sample_nums):
+#             t = np.random.randint(1, itemnum + 1)
+#             while t in rated: t = np.random.randint(1, itemnum + 1)
+#             neg.append(t)
+#         target_num = len(target_seq)
+#         item_idx = target_seq + neg
+#         time_matrix = computeRePos(time_seq, args.time_span)
+#         predictions = -model.predict(*[np.array(l) for l in [[u], [seq], [time_matrix], item_idx]])[0]
+#         # target distance
+#         target_ds = predictions[:target_num]
+#         # sampled results
+#         sample_d = predictions[target_num:]
+#         for target_d in target_ds:
+#             bool_tensor = target_d >= sample_d
+#             count = torch.sum(bool_tensor).item()
+#             if count < 10:
+#                 Recall_U += 1
+#         Recall_U = Recall_U / target_num
+#         Recall += Recall_U
+#         Recall_U = 0
+#         # take the coverage@10 for all users
+#         valid_user += 1
+#         if valid_user % 100 == 0:
+#             print('.', end="")
+#             sys.stdout.flush()
+#     return Recall / valid_user, 0.66
 
 
 def evaluate(model, dataset, args, eval_type='valid'):
@@ -696,12 +695,12 @@ def evaluate(model, dataset, args, eval_type='valid'):
         if len(input_seq) < 1 or len(target_seq) < 1:
             continue
         seq = np.zeros([args.maxlen], dtype=np.int32)
-        time_seq = np.zeros([args.maxlen, 2], dtype=np.int32)
+        time_seq = np.zeros([args.maxlen, 3], dtype=np.int32)
         idx = args.maxlen - 1
         for i in reversed(input_seq):
             # fill the input sequence from the list tail
             seq[idx] = i[0]
-            time_seq[idx] = [i[1][0], i[1][1]]
+            time_seq[idx] = [i[1][0], i[1][1], i[1][2]]
             idx -= 1
             if idx == -1:
                 break
@@ -758,12 +757,12 @@ def evaluate_T(model, dataset, args, eval_type='valid'):
         if len(input_seq) < 1 or len(target_seq) < 1:
             continue
         seq = np.zeros([args.maxlen], dtype=np.int32)
-        time_seq = np.zeros([args.maxlen, 2], dtype=np.int32)
+        time_seq = np.zeros([args.maxlen, 3], dtype=np.int32)
         idx = args.maxlen - 1
         for i in reversed(input_seq):
             # fill the input sequence from the list tail
             seq[idx] = i[0]
-            time_seq[idx] = [i[1][0], i[1][1]]
+            time_seq[idx] = [i[1][0], i[1][1], i[1][2]]
             idx -= 1
             if idx == -1:
                 break

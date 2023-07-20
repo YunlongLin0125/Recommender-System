@@ -9,11 +9,11 @@ hidden_units,50
 inference_only,False
 l2_emb,5e-05
 load_emb,True
-log_dir,experiments/ml-20m/pinnerformer/frozen_item/all_action
+log_dir,experiments/ml-20m/pinnerformer/frozen_item/dense_all_action
 loss_function,sampled_softmax
-lr,0.001
+lr,0.003
 maxlen,200
-model,all_action
+model,dense_all_action
 num_blocks,2
 num_epochs,20
 num_heads,1
