@@ -337,8 +337,7 @@ Train a normal sasrec from scratch (not well performed)
 ```
 1. Run pinnerformer struture (time features[raw, time_diff, time_gap]) for transfer learning.
 2. try replace raw timestamps with scaled raw timestamps
-2. Figure out what need to be done, run formal experiments.
-3. P90 Coverage@10
+3. Figure out what need to be done, run formal experiments.
 ```
 
 
@@ -346,8 +345,7 @@ Train a normal sasrec from scratch (not well performed)
 ## 721 (Fri.)
 
 ```
-1. Run Formal Experiments
-2. Slides Making
+1. P90 Coverage@10
 ```
 
 
