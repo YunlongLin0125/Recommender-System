@@ -345,7 +345,9 @@ Train a normal sasrec from scratch (not well performed)
 ## 721 (Fri.)
 
 ```
-1. P90 Coverage@10
+1. P90 Coverage@10 (makes the training very slow)
+2. Early stopping by validation loss
+2. Cross Validation
 ```
 
 

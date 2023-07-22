@@ -130,6 +130,7 @@ if __name__ == '__main__':
     print("Loss : ", args.loss_function)
 
     num_batch = len(sample_train) // args.batch_size
+    # usernum // args.batch_size
     cc = 0.0
     for u in sample_train:
         cc += len(sample_train[u])
@@ -142,6 +143,9 @@ if __name__ == '__main__':
     if args.temporal:
         # sampler used for temporal splitting data
         sampler = WarpSamplerInputTarget_byT(user_input, user_target, train_users, usernum, itemnum,
+                                             args, batch_size=args.batch_size,
+                                             maxlen=args.maxlen, n_workers=3)
+        sampler_valid = WarpSamplerInputTarget_byT(user_input, user_target, valid_users, usernum, itemnum,
                                              args, batch_size=args.batch_size,
                                              maxlen=args.maxlen, n_workers=3)
     else:
@@ -278,6 +282,7 @@ if __name__ == '__main__':
                                                              loss.item()))  # expected 0.4~0.6 after init few epochs
 
         if epoch % args.eval_epoch == 0:
+            # modify the progress to validation loss
             model.eval()
             t1 = time.time() - t0
             T += t1

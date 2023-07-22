@@ -1,10 +1,11 @@
 import sys
 import copy
+import math
 import random
 import numpy as np
 import torch
 from tqdm import tqdm
-from collections import defaultdict
+from collections import defaultdict, Counter
 from multiprocessing import Process, Queue
 from main import MODEL_NAMES, LOSS_FUNCTIONS, DENSE_ALL_ACTION, DENSE_ALL_PLUS_PLUS, DENSE_ALL_PLUS, INTEGRATED
 from main import SASREC_SAMPLED, NORMAL_SASREC, ALL_ACTION
@@ -314,6 +315,19 @@ def sample_function_input_target_byT(user_train, train_target, train_ids, usernu
                 user = random.choice(train_ids)
             one_batch.append(sample(user))
         result_queue.put(zip(*one_batch))
+
+    # np.random.seed(SEED)
+    # for i in range(batch_size):
+    #     one_batch.append(sample(user))
+    # while True:
+    #     one_batch = []
+    #     for i in range(batch_size):
+    #         user = random.choice(train_ids)
+    #         while len(user_train[user]) <= 1:
+    #             user = random.choice(train_ids)
+    #         one_batch.append(sample(user))
+    #     result_queue.put(zip(*one_batch))
+
 
 
 class WarpSamplerInputTarget_byT(object):
@@ -742,11 +756,13 @@ def evaluate(model, dataset, args, eval_type='valid'):
     return Recall / valid_user, 0.66
 
 
-def evaluate_T(model, dataset, args, eval_type='valid'):
+def evaluate_T_withP90(model, dataset, args, eval_type='valid'):
     [user_input, user_target, usernum, itemnum, _, valid_users, test_users] = dataset
     # train.shape = [user_num, seq_num, (itemid, timestamp)]
     Recall = 0.0
     Recall_U = 0.0
+    coverage_list = []
+    # P90 coverage means the smallest item sets that appear in the top 10 lists of at least 90% of the users.
     valid_user = 0.0
     sample_nums = 500
     if eval_type == 'valid':
@@ -795,7 +811,82 @@ def evaluate_T(model, dataset, args, eval_type='valid'):
         Recall_U = Recall_U / target_num
         Recall += Recall_U
         Recall_U = 0
+        sorted_idx = list(zip(item_idx, predictions))
+        sorted_idx = sorted(sorted_idx, key=lambda x: x[1])
+        retrieved_idx = [x[0] for x in sorted_idx[:10]]
         # take the coverage@10 for all users
+        coverage_list += retrieved_idx
+        # take the coverage@10 for all users
+        valid_user += 1
+        if valid_user % 100 == 0:
+            print('.', end="")
+            sys.stdout.flush()
+    p90_dict = Counter(coverage_list)
+    p90_sort = sorted(p90_dict.items(), key=lambda x: x[1], reverse=True)
+    total_rec = 0
+    item_count = 0
+    for _, num in p90_sort:
+        total_rec += num
+        item_count += 1
+        if total_rec >= 0.9 * 10 * usernum:
+            break
+    return Recall / valid_user, item_count / itemnum
+
+
+def evaluate_T(model, dataset, args, eval_type='valid'):
+    [user_input, user_target, usernum, itemnum, _, valid_users, test_users] = dataset
+    # train.shape = [user_num, seq_num, (itemid, timestamp)]
+    Recall = 0.0
+    Recall_U = 0.0
+    # P90 coverage means the smallest item sets that appear in the top 10 lists of at least 90% of the users.
+    valid_user = 0.0
+    sample_nums = 500
+    if eval_type == 'valid':
+        users = valid_users
+    elif eval_type == 'test':
+        users = test_users
+    else:
+        users = None
+        print('Unknown Evaluation')
+        quit()
+    for u in users:
+        input_seq = user_input[u]
+        target_seq = [x[0] for x in user_target[u]]
+        if len(input_seq) < 1 or len(target_seq) < 1:
+            continue
+        seq = np.zeros([args.maxlen], dtype=np.int32)
+        time_seq = np.zeros([args.maxlen, 3], dtype=np.int32)
+        idx = args.maxlen - 1
+        for i in reversed(input_seq):
+            # fill the input sequence from the list tail
+            seq[idx] = i[0]
+            time_seq[idx] = [i[1][0], i[1][1], i[1][2]]
+            idx -= 1
+            if idx == -1:
+                break
+        rated = set(map(lambda x: x[0], input_seq))
+        rated.update(target_seq)
+        rated.add(0)
+        neg = []
+        for _ in range(sample_nums):
+            t = np.random.randint(1, itemnum + 1)
+            while t in rated: t = np.random.randint(1, itemnum + 1)
+            neg.append(t)
+        target_num = len(target_seq)
+        item_idx = target_seq + neg
+        predictions = -model.predict(*[np.array(l) for l in [[u], [seq], [time_seq], item_idx]])[0]
+        # target distance
+        target_ds = predictions[:target_num]
+        # sampled results
+        sample_d = predictions[target_num:]
+        for target_d in target_ds:
+            bool_tensor = target_d >= sample_d
+            count = torch.sum(bool_tensor).item()
+            if count < 10:
+                Recall_U += 1
+        Recall_U = Recall_U / target_num
+        Recall += Recall_U
+        Recall_U = 0
         valid_user += 1
         if valid_user % 100 == 0:
             print('.', end="")

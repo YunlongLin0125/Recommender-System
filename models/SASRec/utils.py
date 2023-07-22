@@ -1128,71 +1128,71 @@ def data_partition_window_TrainOnly_byP(fname, valid_percent, test_percent, trai
 #     return Recall / valid_user, item_count / sample_nums
 #
 #
-# def evaluate_window_test(model, dataset, dataset_window, args):
-#     [train, valid, test, usernum, itemnum] = copy.deepcopy(dataset)
-#     [_, train, valid, test, _, itemnum, sample_num] = copy.deepcopy(dataset_window)
-#     Recall = 0.0
-#     Recall_U = 0.0
-#     coverage_list = []
-#     # P90 coverage means the smallest item sets that appear in the top 10 lists of at least 90% of the users.
-#     valid_user = 0.0
-#     sample_nums = 500
-#     random_items = random.sample(range(1, itemnum + 1), sample_nums)
-#     sample_idx = random_items
-#     sample_idx_tensor = torch.tensor(sample_idx).to(args.device)
-#     users = range(1, usernum + 1)
-#     for u in users:
-#         if len(train[u]) < 1 or len(test[u]) < 1: continue
-#         seq = np.zeros([args.maxlen], dtype=np.int32)
-#         idx = args.maxlen - 1
-#         for i in reversed(train[u] + valid[u]):
-#             seq[idx] = i
-#             # fill the sequence from end to beginning
-#             idx -= 1
-#             if idx == -1: break
-#             # select the max len or all of the training data in the sequence
-#             # limit the length, seq contains the actual training sequence
-#         # interacted items
-#         rated = set(train[u]+valid[u])
-#         rated.add(0)
-#         # ground truth item
-#         ground_truth_idx = test[u]
-#         test_num = len(test[u])
-#         # collect all indexes, which needs to process on
-#         process_idx = ground_truth_idx + sample_idx
-#         predictions = -model.predict(*[np.array(l) for l in [[u], [seq], process_idx]])[0]
-#         # target distance
-#         target_ds = predictions[:test_num]
-#         # sampled results
-#         sample_d = predictions[test_num:]
-#         # print(len(sample_d))
-#         for target_d in target_ds:
-#             bool_tensor = target_d >= sample_d
-#             count = torch.sum(bool_tensor).item()
-#             if count < 10:
-#                 Recall_U += 1
-#         Recall_U = Recall_U / test_num
-#         Recall += Recall_U
-#         Recall_U = 0
-#         sorted_indices = torch.argsort(sample_d)
-#         sorted_sample_idx = sample_idx_tensor[sorted_indices]
-#         # take the coverage@10 for all users
-#         coverage_list += list(sorted_sample_idx[:10])
-#         valid_user += 1
-#         if valid_user % 100 == 0:
-#             print('.', end="")
-#             sys.stdout.flush()
-#     p90_list = [i.item() for i in coverage_list]
-#     p90_dict = Counter(p90_list)
-#     p90_sort = sorted(p90_dict.items(), key=lambda x: x[1], reverse=True)
-#     total_rec = 0
-#     item_count = 0
-#     for _, num in p90_sort:
-#         total_rec += num
-#         item_count += 1
-#         if total_rec >= 0.9 * 10 * usernum:
-#             break
-#     return Recall / valid_user, item_count / sample_nums
+def evaluate_window_test(model, dataset, dataset_window, args):
+    [train, valid, test, usernum, itemnum] = copy.deepcopy(dataset)
+    [_, train, valid, test, _, itemnum, sample_num] = copy.deepcopy(dataset_window)
+    Recall = 0.0
+    Recall_U = 0.0
+    coverage_list = []
+    # P90 coverage means the smallest item sets that appear in the top 10 lists of at least 90% of the users.
+    valid_user = 0.0
+    sample_nums = 500
+    random_items = random.sample(range(1, itemnum + 1), sample_nums)
+    sample_idx = random_items
+    sample_idx_tensor = torch.tensor(sample_idx).to(args.device)
+    users = range(1, usernum + 1)
+    for u in users:
+        if len(train[u]) < 1 or len(test[u]) < 1: continue
+        seq = np.zeros([args.maxlen], dtype=np.int32)
+        idx = args.maxlen - 1
+        for i in reversed(train[u] + valid[u]):
+            seq[idx] = i
+            # fill the sequence from end to beginning
+            idx -= 1
+            if idx == -1: break
+            # select the max len or all of the training data in the sequence
+            # limit the length, seq contains the actual training sequence
+        # interacted items
+        rated = set(train[u]+valid[u])
+        rated.add(0)
+        # ground truth item
+        ground_truth_idx = test[u]
+        test_num = len(test[u])
+        # collect all indexes, which needs to process on
+        process_idx = ground_truth_idx + sample_idx
+        predictions = -model.predict(*[np.array(l) for l in [[u], [seq], process_idx]])[0]
+        # target distance
+        target_ds = predictions[:test_num]
+        # sampled results
+        sample_d = predictions[test_num:]
+        # print(len(sample_d))
+        for target_d in target_ds:
+            bool_tensor = target_d >= sample_d
+            count = torch.sum(bool_tensor).item()
+            if count < 10:
+                Recall_U += 1
+        Recall_U = Recall_U / test_num
+        Recall += Recall_U
+        Recall_U = 0
+        sorted_indices = torch.argsort(sample_d)
+        sorted_sample_idx = sample_idx_tensor[sorted_indices]
+        # take the coverage@10 for all users
+        coverage_list += list(sorted_sample_idx[:10])
+        valid_user += 1
+        if valid_user % 100 == 0:
+            print('.', end="")
+            sys.stdout.flush()
+    p90_list = [i.item() for i in coverage_list]
+    p90_dict = Counter(p90_list)
+    p90_sort = sorted(p90_dict.items(), key=lambda x: x[1], reverse=True)
+    total_rec = 0
+    item_count = 0
+    for _, num in p90_sort:
+        total_rec += num
+        item_count += 1
+        if total_rec >= 0.9 * 10 * usernum:
+            break
+    return Recall / valid_user, item_count / sample_nums
 
 # Recall@k, XX
 # def evaluate_window_valid(model, dataset, args):
