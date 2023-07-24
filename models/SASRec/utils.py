@@ -728,7 +728,7 @@ class WarpSamplerInputTarget_byT(object):
 #             p.terminate()
 #             p.join()
 
-def data_partition_window_InputTarget_byT(f_train, f_target):
+def data_partition_window_InputTarget_byT(f_train, f_target, args):
     usernum = 0
     itemnum = 0
     user_input = defaultdict(list)

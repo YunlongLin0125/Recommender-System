@@ -59,6 +59,7 @@ parser.add_argument('--temporal', default=False, type=str2bool)
 parser.add_argument('--load_emb', default=False, type=str2bool)
 parser.add_argument('--frozen_item', default=False, type=str2bool)
 parser.add_argument('--finetune', default=False, type=str2bool)
+parser.add_argument('--k_fold', default=0, type=int)
 
 args = parser.parse_args()
 # dataset = data_partition(args.dataset)data
@@ -88,7 +89,7 @@ if __name__ == '__main__':
     patience = 0
 
     if args.temporal:
-        dataset = data_partition_window_InputTarget_byT(args.dataset + '_train', args.dataset + '_target')
+        dataset = data_partition_window_InputTarget_byT(args.dataset + '_train', args.dataset + '_target', args)
         [user_input, user_target, usernum, itemnum, train_users, valid_users, test_users] = dataset
         if args.model == SASREC_SAMPLED:
             # temporal window sasrec sampled model
