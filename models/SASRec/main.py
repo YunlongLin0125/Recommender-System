@@ -83,6 +83,10 @@ def connect_input_target(user_input, user_target, train_users):
 
 
 if __name__ == '__main__':
+    best_score = 0
+    max_patience = 3
+    patience = 0
+
     if args.temporal:
         dataset = data_partition_window_InputTarget_byT(args.dataset + '_train', args.dataset + '_target')
         [user_input, user_target, usernum, itemnum, train_users, valid_users, test_users] = dataset
@@ -413,39 +417,78 @@ if __name__ == '__main__':
             if not args.window_eval:
                 # t_valid = evaluate_valid(model, dataset, args)
                 # t_test = evaluate(model, dataset, args)
-                ## remove the normal evaluation now
+                ## Original
+                # t_valid = evaluate_window(model, dataset, args, eval_type='valid')
+                # t_test = evaluate_window(model, dataset, args, eval_type='test')
+                # print(
+                #     'epoch:%d, time: %f(s), valid (NDCG@10: %.4f, HR@10: %.4f), test (NDCG@10: %.4f, HR@10: %.4f)'
+                #     % (epoch, T, t_valid[0], t_valid[1], t_test[0], t_test[1]))
+                ## new early stop
                 t_valid = evaluate_window(model, dataset, args, eval_type='valid')
-                t_test = evaluate_window(model, dataset, args, eval_type='test')
-                print(
-                    'epoch:%d, time: %f(s), valid (NDCG@10: %.4f, HR@10: %.4f), test (NDCG@10: %.4f, HR@10: %.4f)'
-                    % (epoch, T, t_valid[0], t_valid[1], t_test[0], t_test[1]))
+                print('epoch:%d, time: %f(s), valid (NDCG@10: %.4f, HR@10: %.4f)'
+                      % (epoch, T, t_valid[0], t_valid[1]))
             else:
                 # t_valid = evaluate_window_valid(model, dataset, args)
                 # t_test = evaluate_window_test(model, dataset, args)
+                ## Original
+                # if not args.temporal:
+                #     t_valid = evaluate_window(model, dataset, args, eval_type='valid')
+                #     t_test = evaluate_window(model, dataset, args, eval_type='test')
+                # else:
+                #     t_valid = evaluate_window_byT(model, dataset, args, eval_type='valid')
+                #     t_test = evaluate_window_byT(model, dataset, args, eval_type='test')
+                # print('epoch:%d, time: %f(s), valid (R@10: %.4f, nn: %.4f), test (R@10: %.4f, nn: %.4f)'
+                #       % (epoch, T, t_valid[0], t_valid[1], t_test[0], t_test[1]))
+
+                ## new early stop
                 if not args.temporal:
                     t_valid = evaluate_window(model, dataset, args, eval_type='valid')
-                    t_test = evaluate_window(model, dataset, args, eval_type='test')
                 else:
                     t_valid = evaluate_window_byT(model, dataset, args, eval_type='valid')
-                    t_test = evaluate_window_byT(model, dataset, args, eval_type='test')
-                print('epoch:%d, time: %f(s), valid (R@10: %.4f, nn: %.4f), test (R@10: %.4f, nn: %.4f)'
-                      % (epoch, T, t_valid[0], t_valid[1], t_test[0], t_test[1]))
+                print('epoch:%d, time: %f(s), valid (R@10: %.4f, nn: %.4f)'
+                      % (epoch, T, t_valid[0], t_valid[1]))
                 # print('epoch:%d, time: %f(s), valid (R@10: %.4f, P90coverage@10: %.4f), test (R@10: %.4f, '
                 #       'P90coverage@10: %.4f)'
                 #       % (epoch, T, t_valid[0], t_valid[1], t_test[0], t_test[1]))
-            f.write(str(t_valid) + ' ' + str(t_test) + '\n')
+            f.write("--time: " + str(T) + ", " + "epoch: " + str(epoch) + ", " + "Score: " + str(t_valid) + '\n')
             f.flush()
+
+            if t_valid[0] > best_score:
+                best_score = t_valid[0]
+                folder = args.log_dir
+                fname = '{}.best.lr={}.layer={}.head={}.hidden={}.maxlen={}.pth'
+                fname = fname.format(args.model, args.lr, args.num_blocks,
+                                     args.num_heads, args.hidden_units, args.maxlen)
+                torch.save(model.state_dict(), os.path.join(folder, fname))
+                patience = 0
+            else:
+                patience += 1
+
+            if patience >= max_patience:
+                # early stop the model
+                f.write('Early stopping due to lack of improvement in validation loss.' + '\n')
+                f.flush()
+                print('Early stopping due to lack of improvement in validation loss.')
+                break
             t0 = time.time()
             model.train()
+        ## Original: Comment previous model saving
+        # if epoch == args.num_epochs:
+        #     # folder = args.dataset + '_' + args.log_dir
+        #     folder = args.log_dir
+        #     fname = '{}.epoch={}.lr={}.layer={}.head={}.hidden={}.maxlen={}.pth'
+        #     fname = fname.format(args.model, args.num_epochs, args.lr, args.num_blocks, args.num_heads,
+        #                          args.hidden_units,
+        #                          args.maxlen)
+        #     torch.save(model.state_dict(), os.path.join(folder, fname))
 
-        if epoch == args.num_epochs:
-            # folder = args.dataset + '_' + args.log_dir
-            folder = args.log_dir
-            fname = '{}.epoch={}.lr={}.layer={}.head={}.hidden={}.maxlen={}.pth'
-            fname = fname.format(args.model, args.num_epochs, args.lr, args.num_blocks, args.num_heads,
-                                 args.hidden_units,
-                                 args.maxlen)
-            torch.save(model.state_dict(), os.path.join(folder, fname))
+    ## new: Final model performance calculation
+    model.load_state_dict(torch.load(os.path.join(args.log_dir, fname)))
+    if not args.temporal:
+        t_test = evaluate_window_withP90(model, dataset, args, eval_type='test')
+    else:
+        t_test = evaluate_window_byT_withP90(model, dataset, args, eval_type='test')
+    f.write("Final Model Performance : " + str(t_test) + '\n')
     print("Done")
     end_time = time.time()
     execution_time = end_time - start_time
