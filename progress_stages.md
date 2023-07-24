@@ -310,8 +310,6 @@ Results are collected by best in valid dataset and correcsponding test
 
 # week 7
 
-
-
 ## 718 (Tue.)
 
 ```
@@ -332,6 +330,8 @@ Clarify Pinnerformer:
 Train a normal sasrec from scratch (not well performed)
 ```
 
+
+
 ## 720 (Thur.)
 
 ```
@@ -346,13 +346,43 @@ Train a normal sasrec from scratch (not well performed)
 
 ```
 1. P90 Coverage@10 (makes the training very slow)
-2. Early stopping by validation loss
-2. Cross Validation
+2. Early stopping by validation loss (Not complete)
+2. Cross Validation (Not complete)
 ```
 
 
 
-# Formal Experiments
+## 724 (Mon.)
+
+```
+1. Implement early stop to all models (Based on Validation Recall only)
+2. Think about the way better evaluate all models fairly (Cross Validation)
+
+but you need to make sure all models test on the same dataset.
+Same way to create test set.
+
+Or k fold cross-validation
+Validation + Train shuffle with the same seed across all the models, then create k model performance.
+
+manually get average
+
+3. Table Making
+```
+
+
+
+# Week 8
+
+## 725 (Tue.)
+
+```
+1. Code Refactor
+2. Make sure all formal experiments (Table Making)
+```
+
+
+
+# Formal Experiments (Carry out from 7.25)
 
 ```
 1. Next item prediction vs window predictor (Show the problem of window-predictor)____Train from Scratch
@@ -368,12 +398,31 @@ Train a normal sasrec from scratch (not well performed)
 
 
 
+Main Eval Task: How well each can predict all future purchases over the next k days
+
+```
+1. TFS: next item prediction (SASRec) vs. percentage window predictor
+
+* Increase the signal intensity (new models proposed)
+* Loss function Selected
+* negative samples selection
+* Hyperparameter tuning (learning rate)
+
+↓ Results leads to transfer learning ↓
+
+2. TL: next item vs. percentage window predictor
+3. TL & TFS： next item predictor vs. temporal window predictor
+4. TL & TFS: Temporal window predictor vs. Ti temoral window predictor
+```
+
+
+
 # TODO
 
-1. incorporate relative time features.
-2. P90 coverage evaluation metric
+1. <span style="color:red">incorporate relative time features </span>
+2. <span style="color:red">P90 coverage evaluation metric</span>
 3. Formal experiments run
 4. Dissertation
 5. Hyperparameter tuning (optional)
-6. Try different data splitting strategy (optional)
+6. <span style="color:blue">Try different data splitting strategy (optional)</span>
 7. More datasets (optional)
