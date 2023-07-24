@@ -761,6 +761,25 @@ def data_partition_window_InputTarget_byT(f_train, f_target):
     train_users = users[:int(usernum * train_split)]
     valid_users = users[int(usernum * train_split):int(usernum * valid_split)]
     test_users = users[int(usernum * valid_split):]
+    ## cross Validation
+    # fold_users = train_users + valid_users
+    # unit_len = len(train_users + valid_users)
+    ## 1
+    # valid_users = fold_users[:unit_len]
+    # train_users = fold_users[unit_len:]
+    ## 2
+    # valid_users = fold_users[unit_len*1: unit_len*2]
+    # train_users = fold_users[:unit_len] + fold_users[unit_len*2:]
+    ## 3
+    # valid_users = fold_users[unit_len*2: unit_len*3]
+    # train_users = fold_users[:unit_len*2] + fold_users[unit_len*3:]
+    ## 4
+    # valid_users = fold_users[unit_len*3: unit_len*4]
+    # train_users = fold_users[:unit_len*3] + fold_users[unit_len*4:]
+    ## 5
+    # valid_users = fold_users[unit_len*4:]
+    # train_users = fold_users[:unit_len*4]
+
     return [user_input, user_target, usernum, itemnum, train_users, valid_users, test_users]
 
 
@@ -1153,7 +1172,7 @@ def evaluate_window_test(model, dataset, dataset_window, args):
             # select the max len or all of the training data in the sequence
             # limit the length, seq contains the actual training sequence
         # interacted items
-        rated = set(train[u]+valid[u])
+        rated = set(train[u] + valid[u])
         rated.add(0)
         # ground truth item
         ground_truth_idx = test[u]
@@ -1193,6 +1212,7 @@ def evaluate_window_test(model, dataset, dataset_window, args):
         if total_rec >= 0.9 * 10 * usernum:
             break
     return Recall / valid_user, item_count / sample_nums
+
 
 # Recall@k, XX
 # def evaluate_window_valid(model, dataset, args):
