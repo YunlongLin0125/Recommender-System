@@ -269,7 +269,7 @@ def sample_function_input_target_byT(user_train, train_target, train_ids, usernu
 
 
 class WarpSamplerTrainOnly(object):
-    def __init__(self, user_train, usernum, itemnum, args, batch_size=64, maxlen=10, n_workers=1):
+    def __init__(self, user_train, usernum, itemnum, args, seed, batch_size=64, maxlen=10, n_workers=1):
         self.result_queue = Queue(maxsize=n_workers * 10)
         self.processors = []
         for i in range(n_workers):
@@ -281,7 +281,7 @@ class WarpSamplerTrainOnly(object):
                                                             maxlen,
                                                             self.result_queue,
                                                             args,
-                                                            np.random.randint(2e9)
+                                                            seed
                                                             )))
             self.processors[-1].daemon = True
             self.processors[-1].start()
@@ -296,7 +296,7 @@ class WarpSamplerTrainOnly(object):
 
 
 class WarpSamplerInputTarget(object):
-    def __init__(self, user_input, user_target, usernum, itemnum, args, batch_size=64, maxlen=10, n_workers=1):
+    def __init__(self, user_input, user_target, usernum, itemnum, args, seed, batch_size=64, maxlen=10, n_workers=1):
         self.result_queue = Queue(maxsize=n_workers * 10)
         self.processors = []
         for i in range(n_workers):
@@ -309,7 +309,7 @@ class WarpSamplerInputTarget(object):
                                                                    maxlen,
                                                                    self.result_queue,
                                                                    args,
-                                                                   np.random.randint(2e9)
+                                                                   seed
                                                                    )))
             self.processors[-1].daemon = True
             self.processors[-1].start()

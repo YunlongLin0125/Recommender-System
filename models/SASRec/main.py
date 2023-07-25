@@ -60,6 +60,7 @@ parser.add_argument('--load_emb', default=False, type=str2bool)
 parser.add_argument('--frozen_item', default=False, type=str2bool)
 parser.add_argument('--finetune', default=False, type=str2bool)
 parser.add_argument('--k_fold', default=0, type=int)
+parser.add_argument('--sample_seed', default=2e9, type=int)
 
 args = parser.parse_args()
 # dataset = data_partition(args.dataset)data
@@ -112,11 +113,18 @@ if __name__ == '__main__':
             print('average sequence length for target window: %.2f' % (target_len / len(user_target)))
 
     else:
+        ## percentage window
+        seeds = [42, 123, 456, 789, 159]
+        if 0 < args.sample_seed <= 5:
+            SEED = seeds[args.sample_seed - 1]
+        else:
+            SEED = seeds[0]
+
         if args.model == NORMAL_SASREC:  # normal sasrec but trained on the window train sequence
             dataset_window = data_partition_window_TrainOnly_byP(args.dataset, valid_percent=0.1, test_percent=0.1,
                                                                  train_percent=0.1)
             [_, user_train, user_valid, user_test, usernum, itemnum, _] = dataset_window
-            sampler = WarpSamplerTrainOnly(user_train, usernum, itemnum, args, batch_size=args.batch_size,
+            sampler = WarpSamplerTrainOnly(user_train, usernum, itemnum, args, SEED, batch_size=args.batch_size,
                                            maxlen=args.maxlen,
                                            n_workers=3)
             dataset = dataset_window
@@ -127,7 +135,7 @@ if __name__ == '__main__':
             dataset_window = data_partition_window_TrainOnly_byP(args.dataset, valid_percent=0.1, test_percent=0.1,
                                                                  train_percent=0.1)
             [sample_train, user_train, user_valid, user_test, usernum, itemnum, sample_num] = dataset_window
-            sampler = WarpSamplerTrainOnly(sample_train, sample_num, itemnum, args, batch_size=args.batch_size,
+            sampler = WarpSamplerTrainOnly(sample_train, sample_num, itemnum, args, SEED, batch_size=args.batch_size,
                                            maxlen=args.maxlen,
                                            n_workers=3)
             dataset = dataset_window
@@ -140,7 +148,7 @@ if __name__ == '__main__':
             [user_input, user_target, user_train, user_valid, user_test, usernum, itemnum] = dataset_all_action
             # sampler = WarpSamplerAllAction(user_input, user_target, usernum, itemnum, batch_size=args.batch_size,
             #                                maxlen=args.maxlen, n_workers=3)
-            sampler = WarpSamplerInputTarget(user_input, user_target, usernum, itemnum, args,
+            sampler = WarpSamplerInputTarget(user_input, user_target, usernum, itemnum, args, SEED,
                                              batch_size=args.batch_size,
                                              maxlen=args.maxlen, n_workers=3)
             dataset = dataset_all_action
@@ -151,7 +159,7 @@ if __name__ == '__main__':
             dataset_dense_all = data_partition_window_InputTarget_byP(args.dataset, valid_percent=0.1,
                                                                       test_percent=0.1, train_percent=0.1)
             [user_input, user_target, user_train, user_valid, user_test, usernum, itemnum] = dataset_dense_all
-            sampler = WarpSamplerInputTarget(user_input, user_target, usernum, itemnum, args,
+            sampler = WarpSamplerInputTarget(user_input, user_target, usernum, itemnum, args, SEED,
                                              batch_size=args.batch_size,
                                              maxlen=args.maxlen, n_workers=3)
             dataset = dataset_dense_all
@@ -164,7 +172,7 @@ if __name__ == '__main__':
             [user_input, user_target, user_train, user_valid, user_test, usernum, itemnum] = dataset_dense_all
             # sampler = WarpSamplerDenseAllPlus(user_input, user_target, usernum, itemnum, batch_size=args.batch_size,
             #                                   maxlen=args.maxlen, n_workers=3)
-            sampler = WarpSamplerInputTarget(user_input, user_target, usernum, itemnum, args,
+            sampler = WarpSamplerInputTarget(user_input, user_target, usernum, itemnum, args, SEED,
                                              batch_size=args.batch_size,
                                              maxlen=args.maxlen, n_workers=3)
             dataset = dataset_dense_all
@@ -177,7 +185,7 @@ if __name__ == '__main__':
             [user_input, user_target, user_train, user_valid, user_test, usernum, itemnum] = dataset_dense_all
             # sampler = WarpSamplerIntegrated(user_input, user_target, usernum, itemnum, batch_size=args.batch_size,
             #                                 maxlen=args.maxlen, n_workers=3)
-            sampler = WarpSamplerInputTarget(user_input, user_target, usernum, itemnum, args,
+            sampler = WarpSamplerInputTarget(user_input, user_target, usernum, itemnum, args, SEED,
                                              batch_size=args.batch_size,
                                              maxlen=args.maxlen, n_workers=3)
             dataset = dataset_dense_all
@@ -190,7 +198,7 @@ if __name__ == '__main__':
             [user_input, user_target, user_train, user_valid, user_test, usernum, itemnum] = dataset_dense_all
             # sampler = WarpSamplerDenseAllPlusPlus(user_input, user_target, usernum, itemnum,
             # batch_size=args.batch_size, maxlen=args.maxlen, n_workers=3)
-            sampler = WarpSamplerInputTarget(user_input, user_target, usernum, itemnum, args,
+            sampler = WarpSamplerInputTarget(user_input, user_target, usernum, itemnum, args, SEED,
                                              batch_size=args.batch_size,
                                              maxlen=args.maxlen, n_workers=3)
             dataset = dataset_dense_all
@@ -203,7 +211,7 @@ if __name__ == '__main__':
             dataset_dense_all = data_partition_window_InputTarget_byP(args.dataset, valid_percent=0.1,
                                                                       test_percent=0.1, train_percent=0.1)
             [user_input, user_target, user_train, user_valid, user_test, usernum, itemnum] = dataset_dense_all
-            sampler = WarpSamplerInputTarget(user_input, user_target, usernum, itemnum, args,
+            sampler = WarpSamplerInputTarget(user_input, user_target, usernum, itemnum, args, SEED,
                                              batch_size=args.batch_size,
                                              maxlen=args.maxlen, n_workers=3)
             dataset = dataset_dense_all
