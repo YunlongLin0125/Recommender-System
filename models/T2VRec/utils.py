@@ -208,7 +208,7 @@ def sample_function_input_target_byT(user_train, train_target, train_ids, usernu
         # randomly select a trained used user index
         idx = maxlen - 1
         num_neg = 10
-        sample_actions = 16
+        sample_actions = 32
         target_seq = [x[0] for x in train_target[user]]
         if args.model in [DENSE_ALL_ACTION]:
             target_seq = target_seq
