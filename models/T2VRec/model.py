@@ -207,7 +207,7 @@ class T2V_SASRec(torch.nn.Module):
         t_timegap = self.t2v_timegap(torch.LongTensor(time_seqs[..., 2]).unsqueeze(-1).to(self.dev))
         # print(t_abs.shape)
         # print(t_rel.shape)
-        # t_seqs = self.t2v_abs(torch.LongTensor(time_seqs[..., 0]).unsqueeze(-1).to(self.dev))
+        # t_seqs = self.t2v_abs(torch.LongTensor(time_seqs[..s., 0]).unsqueeze(-1).to(self.dev))
         # t_seqs.shape = [batch_size, seq_len, num_features]
         # scale the values
         # print(t_abs[-1, -1])
@@ -273,7 +273,10 @@ class T2V_SASRec(torch.nn.Module):
     def predict(self, user_ids, log_seqs, time_seqs, item_indices):  # for inference
         log_feats = self.seq2feats(log_seqs, time_seqs)  # user_ids hasn't been used yet
         final_feat = log_feats[:, -1, :]  # only use last QKV classifier, a waste
-        item_embs = self.item_emb(torch.LongTensor(item_indices).to(self.dev))  # (U, I, C)
+        # print("item_indices dtype:", item_indices.dtype)
+        # print("item_indices shape:", item_indices.shape)
+        item_embs = self.item_emb(torch.LongTensor(item_indices).to(self.dev))
+        # item_embs = self.item_emb(torch.LongTensor(item_indices).to(self.dev))  # (U, I, C)
         # print(item_embs.shape)
         logits = item_embs.matmul(final_feat.unsqueeze(-1)).squeeze(-1)
         # preds = self.pos_sigmoid(logits) # rank same item list for different users
@@ -331,7 +334,6 @@ class T2V_DenseAllPlus(T2V_SASRec):  # similar to torch.nn.MultiheadAttention
         pos_logits = (log_feats.unsqueeze(2) * pos_embs).sum(dim=-1)
         neg_logits = (log_feats.unsqueeze(2) * neg_embs).sum(dim=-1)
         return pos_logits, neg_logits
-
 
 class T2V_SASRecSampledLoss(T2V_SASRec):
     def __init__(self, user_num, item_num, args):

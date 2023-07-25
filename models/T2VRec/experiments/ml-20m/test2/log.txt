@@ -1,0 +1,2 @@
+--time: 30.19461178779602, epoch: 1, Score: (0.42935807660908587, 0.66)
+Early stopping due to lack of improvement in validation loss.

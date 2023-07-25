@@ -316,19 +316,6 @@ def sample_function_input_target_byT(user_train, train_target, train_ids, usernu
             one_batch.append(sample(user))
         result_queue.put(zip(*one_batch))
 
-    # np.random.seed(SEED)
-    # for i in range(batch_size):
-    #     one_batch.append(sample(user))
-    # while True:
-    #     one_batch = []
-    #     for i in range(batch_size):
-    #         user = random.choice(train_ids)
-    #         while len(user_train[user]) <= 1:
-    #             user = random.choice(train_ids)
-    #         one_batch.append(sample(user))
-    #     result_queue.put(zip(*one_batch))
-
-
 
 class WarpSamplerInputTarget_byT(object):
     def __init__(self, user_input, user_target, train_ids, usernum, itemnum, args, batch_size=64
@@ -360,25 +347,27 @@ class WarpSamplerInputTarget_byT(object):
             p.join()
 
 
-def time_feature_creation_abs(User):
-    # absolute time feature
-    print("Time feature deriving: Abs")
-    for user in User:
-        time_max = max(list(map(lambda x: x[1], User[user])))
-        User[user] = [(item, time_max - time) for item, time in User[user]]
-    print("feature Done")
-
-
-def time_feature_creation_rel(User):
-    # relative time feature
-    print("Time feature deriving: Rel")
-    for user in User:
-        items = list(map(lambda x: x[0], User[user]))
-        timestamps = list(map(lambda x: x[1], User[user]))
-        time_gaps = [timestamps[i + 1] - timestamps[i] for i in range(len(timestamps) - 1)]
-        time_gaps.append(0)
-        User[user] = list(zip(items, time_gaps))
-    print("feature Done")
+# def time_feature_creation_abs(User):
+#     # absolute time feature
+#     # time diff
+#     print("Time feature deriving: Abs")
+#     for user in User:
+#         time_max = max(list(map(lambda x: x[1], User[user])))
+#         User[user] = [(item, time_max - time) for item, time in User[user]]
+#     print("feature Done")
+#
+#
+# def time_feature_creation_rel(User):
+#     # relative time feature
+#     # time gap
+#     print("Time feature deriving: Rel")
+#     for user in User:
+#         items = list(map(lambda x: x[0], User[user]))
+#         timestamps = list(map(lambda x: x[1], User[user]))
+#         time_gaps = [timestamps[i + 1] - timestamps[i] for i in range(len(timestamps) - 1)]
+#         time_gaps.append(0)
+#         User[user] = list(zip(items, time_gaps))
+#     print("feature Done")
 
 
 def feature_generation(User, all_max):
@@ -390,14 +379,14 @@ def feature_generation(User, all_max):
         # time diff (rel)
         time_max = max(timestamps)
         time_diff = [time_max - time for time in timestamps]
-
         # time gap (rel)
         time_gaps = [timestamps[i + 1] - timestamps[i] for i in range(len(timestamps) - 1)]
         time_gaps.append(0)
         # scaled raw timestamps (abs)
-        scaled_timestamps = [all_max - time for time in timestamps]
+        # scaled_timestamps = [all_max - time for time in timestamps]
+        # time_feats = list(zip(scaled_timestamps, time_diff, time_gaps))
 
-        time_feats = list(zip(scaled_timestamps, time_diff, time_gaps))
+        time_feats = list(zip(timestamps, time_diff, time_gaps))
         User[user] = list(zip(items, time_feats))
     print("feature Done")
 
@@ -608,6 +597,8 @@ def data_partition_window_InputTarget_byT(f_train, f_target, args):
         # find all timestamps
         itemnum = max(i, itemnum)
         user_target[u].append([i, timestamp])
+        if args.model == NORMAL_SASREC:
+            time_set.add(timestamp)
     # generate user_ids for train/val/test
     # time_feature_creation(user_target) # useless, don't need time in all target window
     print("Target Read Done")
@@ -618,6 +609,26 @@ def data_partition_window_InputTarget_byT(f_train, f_target, args):
     train_users = users[:int(usernum * train_split)]
     valid_users = users[int(usernum * train_split):int(usernum * valid_split)]
     test_users = users[int(usernum * valid_split):]
+    #
+    # fold_users = train_users + valid_users
+    # rng.shuffle(fold_users)
+    # unit_len = len(train_users + valid_users)
+    ## if args.k_fold == 1:
+    # valid_users = fold_users[:unit_len]
+    # train_users = fold_users[unit_len:]
+    ## elif args.k_fold == 2:
+    # valid_users = fold_users[unit_len*1: unit_len*2]
+    # train_users = fold_users[:unit_len] + fold_users[unit_len*2:]
+    ## elif args.k_fold == 3:
+    # valid_users = fold_users[unit_len*2: unit_len*3]
+    # train_users = fold_users[:unit_len*2] + fold_users[unit_len*3:]
+    ## elif args.k_fold == 4:
+    # valid_users = fold_users[unit_len*3: unit_len*4]
+    # train_users = fold_users[:unit_len*3] + fold_users[unit_len*4:]
+    ## elif args.k_fold == 5:
+    # valid_users = fold_users[unit_len*4:]
+    # train_users = fold_users[:unit_len*4]
+
     if args.model == NORMAL_SASREC:
         # next item prediction focus on the whole train seq rather than only input sequence.
         connect_input_target(user_input, user_target, train_users)
@@ -892,3 +903,53 @@ def evaluate_T(model, dataset, args, eval_type='valid'):
             print('.', end="")
             sys.stdout.flush()
     return Recall / valid_user, 0.66
+
+
+def Loss_calculation(user_input, user_target, user_ids, model, args):
+    bce_criterion = torch.nn.BCEWithLogitsLoss()
+    total_valid_loss = 0
+    valid_user = 0
+    for u in user_ids:
+
+        input_seq = user_input[u]
+        target_seq = [x[0] for x in user_target[u]]
+        if len(input_seq) < 1 or len(target_seq) < 1:
+            continue
+        seq = np.zeros([args.maxlen], dtype=np.int32)
+        time_seq = np.zeros([args.maxlen, 3], dtype=np.int32)
+        idx = args.maxlen - 1
+        for i in reversed(input_seq):
+            # fill the input sequence from the list tail
+            seq[idx] = i[0]
+            time_seq[idx] = [i[1][0], i[1][1], i[1][2]]
+            idx -= 1
+            if idx == -1:
+                break
+        logits = model.predict(*[np.array(l) for l in [[u], [seq], [time_seq], target_seq]])
+        labels = torch.ones(logits.shape, device=args.device)
+        with torch.no_grad():  # Deactivate gradients for the following block
+            # Loss function selection
+            if args.loss_function == BCE:
+                # bce loss
+                if args.model == ALL_ACTION:
+                    val_loss += bce_criterion(logits, labels)
+                else:
+                    indices_val = (seq != 0)
+                    val_loss = bce_criterion(logits[indices_val], labels[indices_val])
+            else:
+                # sampled softmax loss
+                if args.model == ALL_ACTION:
+                    val_loss = -torch.log(torch.exp(logits) / torch.sum(torch.exp(labels)))
+                else:
+                    mask_val = (seq != 0)
+                    logits = logits[mask_val]
+                    val_loss = -torch.log(torch.exp(logits) / torch.sum(torch.exp(labels)))
+                val_loss = val_loss.mean()
+        total_valid_loss += val_loss.item()
+        valid_user += 1
+        if valid_user % 100 == 0:
+            print('.', end="")
+            sys.stdout.flush()
+    print("Validation Loss is: ", total_valid_loss / len(user_ids))
+
+    return total_valid_loss

@@ -60,6 +60,8 @@ parser.add_argument('--loss_function', default=BCE, choices=LOSS_FUNCTIONS, requ
 parser.add_argument('--load_emb', default=False, type=str2bool)
 parser.add_argument('--frozen_item', default=False, type=str2bool)
 parser.add_argument('--finetune', default=False, type=str2bool)
+parser.add_argument('--val_loss', default=False, type=str2bool)
+parser.add_argument('--k_fold', default=0, type=int)
 
 args = parser.parse_args()
 if not os.path.isdir(args.log_dir):
@@ -75,6 +77,9 @@ if __name__ == '__main__':
     #                                                     train_percent=0.1)
     #     [user_input, user_target, user_train, user_valid, user_test, usernum, itemnum, timenum] = dataset
     # temporal
+    best_score = 0
+    max_patience = 3
+    patience = 0
     if args.temporal:
         dataset = data_partition_window_InputTarget_byT(args.dataset + '_train_withtime',
                                                         args.dataset + '_target_withtime', args)
@@ -96,7 +101,7 @@ if __name__ == '__main__':
             if args.model == ALL_ACTION:
                 # final embedding focus
                 # num_pos, num_neg
-                model = T2V_AllAction(usernum, itemnum,  args).to(args.device)
+                model = T2V_AllAction(usernum, itemnum, args).to(args.device)
             elif args.model == DENSE_ALL_ACTION:
                 # 1, num neg
                 model = T2V_DenseAllAction(usernum, itemnum, args).to(args.device)
@@ -130,6 +135,7 @@ if __name__ == '__main__':
     print("Loss : ", args.loss_function)
 
     num_batch = len(sample_train) // args.batch_size
+    num_batch_valid = len(valid_users) // args.batch_size
     # usernum // args.batch_size
     cc = 0.0
     for u in sample_train:
@@ -143,9 +149,6 @@ if __name__ == '__main__':
     if args.temporal:
         # sampler used for temporal splitting data
         sampler = WarpSamplerInputTarget_byT(user_input, user_target, train_users, usernum, itemnum,
-                                             args, batch_size=args.batch_size,
-                                             maxlen=args.maxlen, n_workers=3)
-        sampler_valid = WarpSamplerInputTarget_byT(user_input, user_target, valid_users, usernum, itemnum,
                                              args, batch_size=args.batch_size,
                                              maxlen=args.maxlen, n_workers=3)
     else:
@@ -174,7 +177,6 @@ if __name__ == '__main__':
         # source_model = T2V_SASRecSampledLoss(usernum, itemnum, args).to(args.device)
         source_model = SASRecSampledLoss(usernum, itemnum, args).to(args.device)
         if 'ml-20m' in args.dataset:
-
             # source_model.load_state_dict(torch.load('experiments/item_emb/normal_sasrec.epoch=100.lr=0.003.layer=2'
             #                                         '.head=1.hidden=50.maxlen=50.pth'))
             source_model.load_state_dict(torch.load('experiments/item_emb/normal_sasrec.epoch=50.lr=0.001.layer=2'
@@ -200,17 +202,19 @@ if __name__ == '__main__':
             print('failed loading state_dicts, pls check file path: ', end="")
             print(args.state_dict_path)
 
+    bce_criterion = torch.nn.BCEWithLogitsLoss()
+
     if args.inference_only:
         model.eval()
         if args.temporal:
-            t_test = evaluate_T(model, dataset, args, 'test')
-            t_valid = evaluate_T(model, dataset, args, 'valid')
+            t_test = evaluate_T_withP90(model, dataset, args, 'test')
+            # t_valid = evaluate_T(model, dataset, args, 'valid')
         else:
             t_test = evaluate(model, dataset, args, 'test')
-            t_valid = evaluate(model, dataset, args, 'valid')
+            # t_valid = evaluate(model, dataset, args, 'valid')
         print('test (Recall@10: %.4f, P90: %.4f)' % (t_test[0], t_test[1]))
+        f.write(str(t_test) + '\n')
 
-    bce_criterion = torch.nn.BCEWithLogitsLoss()
     # configure finetune
     if args.finetune:
         item_emb_lr = args.lr * 1e-2
@@ -279,7 +283,7 @@ if __name__ == '__main__':
             loss.backward()
             adam_optimizer.step()
             print("loss in epoch {} iteration {}: {}".format(epoch, step,
-                                                             loss.item()))  # expected 0.4~0.6 after init few epochs
+                                                             loss.item()))
 
         if epoch % args.eval_epoch == 0:
             # modify the progress to validation loss
@@ -287,28 +291,52 @@ if __name__ == '__main__':
             t1 = time.time() - t0
             T += t1
             print('Evaluating', end='')
+            # if args.val_loss:
+            #     valid_loss = Loss_calculation(user_input, user_target, valid_users, model, args)
+            #     print('epoch:%d, time: %f(s), valid_loss : (%.4f)', epoch, T, valid_loss)
+            #     f.write("Validation Loss in epoch " + str(epoch) + ' : ' + str(valid_loss / len(valid_users)) + '\n')
+            # else:
             if args.temporal:
-                t_test = evaluate_T(model, dataset, args, 'test')
+                # t_test = evaluate_T(model, dataset, args, 'test')
                 t_valid = evaluate_T(model, dataset, args, 'valid')
             else:
-                t_test = evaluate(model, dataset, args, 'test')
+                # t_test = evaluate(model, dataset, args, 'test')
                 t_valid = evaluate(model, dataset, args, 'valid')
-                # t_test = evaluate_window(model, dataset, args, 'test')
-                # t_valid = evaluate_window(model, dataset, args, 'valid')
-            print('epoch:%d, time: %f(s), valid (R@10: %.4f, P90: %.4f), test (R@10: %.4f, P90: %.4f)'
-                  % (epoch, T, t_valid[0], t_valid[1], t_test[0], t_test[1]))
-            f.write(str(t_valid) + ' ' + str(t_test) + '\n')
+            print('epoch:%d, time: %f(s), valid (R@10: %.4f, P90: %.4f)'
+                  % (epoch, T, t_valid[0], t_valid[1]))
+            f.write("--time: " + str(T) + ", " + "epoch: " + str(epoch) + ", " + "Score: " + str(t_valid) + '\n')
             f.flush()
-            t0 = time.time()
-            model.train()
 
-        if epoch == args.num_epochs:
-            folder = args.log_dir
-            fname = '{}.epoch={}.lr={}.layer={}.head={}.hidden={}.maxlen={}.pth'
-            fname = fname.format(args.model, args.num_epochs, args.lr, args.num_blocks, args.num_heads,
-                                 args.hidden_units,
-                                 args.maxlen)
-            torch.save(model.state_dict(), os.path.join(folder, fname))
+            if t_valid[0] > best_score:
+                best_score = t_valid[0]
+                folder = args.log_dir
+                fname = '{}.best.lr={}.layer={}.head={}.hidden={}.maxlen={}.pth'
+                fname = fname.format(args.model, args.lr, args.num_blocks,
+                                     args.num_heads, args.hidden_units, args.maxlen)
+                torch.save(model.state_dict(), os.path.join(folder, fname))
+                patience = 0
+            else:
+                patience += 1
+
+            if patience >= max_patience:
+                # early stop the model
+                f.write('Early stopping due to lack of improvement in validation loss.' + '\n')
+                f.flush()
+                print('Early stopping due to lack of improvement in validation loss.')
+                break
+        t0 = time.time()
+        model.train()
+        # if epoch == args.num_epochs:
+        #     folder = args.log_dir
+        #     fname = '{}.epoch={}.lr={}.layer={}.head={}.hidden={}.maxlen={}.pth'
+        #     fname = fname.format(args.model, args.num_epochs, args.lr, args.num_blocks, args.num_heads,
+        #                          args.hidden_units,
+        #                          args.maxlen)
+        #     torch.save(model.state_dict(), os.path.join(folder, fname))
+    # Final model performance
+    model.load_state_dict(torch.load(os.path.join(args.log_dir, fname)))
+    t_test = evaluate_T_withP90(model, dataset, args, 'test')
+    f.write("Final Model Performance : " + str(t_test) + '\n')
 
     end_time = time.time()
     execution_time = end_time - start_time

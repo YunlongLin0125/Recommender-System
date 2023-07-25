@@ -1,3 +1,3 @@
-./train_from_scratch.sh
+./run_pinnerformer_frozen.sh
 
-./frozen_item_emb.sh
+./run_pinnerformer_finetune.sh
