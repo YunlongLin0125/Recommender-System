@@ -36,17 +36,18 @@ def sample_function_train(user_train, usernum, itemnum, batch_size, maxlen, resu
         seq = np.zeros([maxlen], dtype=np.int32)
         pos = np.zeros([maxlen], dtype=np.int32)
         neg = np.zeros([maxlen, num_negs], dtype=np.int32)
-
         for i in reversed(user_train[user][:-1]):
             # fill the seq with all interacted except the last item as the target action
             # i started by user_train[user][-2]
             seq[idx] = i  # [x,x,x,x,x,x,#]
             pos[idx] = nxt  # [#,y,y,y,y,y,y]
             # negative sampling (random_neq) from 1 to itemnum + 1
-            if nxt != 0: neg[idx] = random_neq(1, itemnum + 1, ts, num_negs)
+            if nxt != 0:
+                neg[idx] = random_neq(1, itemnum + 1, ts, num_negs)
             nxt = i
             idx -= 1
-            if idx == -1: break
+            if idx == -1:
+                break
 
         # user: uniformly sampled userid
         # seq: the sequence of items the user has interacted with
@@ -159,7 +160,7 @@ def sample_function_input_target_byT(user_train, train_target, train_ids, usernu
             user = random.choice(train_ids)
         idx = maxlen - 1
         num_neg = 10
-        sample_actions = 16
+        sample_actions = 32
         target_seq = train_target[user]
         if args.model in [DENSE_ALL_ACTION]:
             target_seq = train_target[user]
@@ -269,7 +270,7 @@ def sample_function_input_target_byT(user_train, train_target, train_ids, usernu
 
 
 class WarpSamplerTrainOnly(object):
-    def __init__(self, user_train, usernum, itemnum, args, seed, batch_size=64, maxlen=10, n_workers=1):
+    def __init__(self, user_train, usernum, itemnum, args, batch_size=64, maxlen=10, n_workers=1):
         self.result_queue = Queue(maxsize=n_workers * 10)
         self.processors = []
         for i in range(n_workers):
@@ -281,7 +282,7 @@ class WarpSamplerTrainOnly(object):
                                                             maxlen,
                                                             self.result_queue,
                                                             args,
-                                                            seed
+                                                            np.random.randint(2e9)
                                                             )))
             self.processors[-1].daemon = True
             self.processors[-1].start()
@@ -296,7 +297,7 @@ class WarpSamplerTrainOnly(object):
 
 
 class WarpSamplerInputTarget(object):
-    def __init__(self, user_input, user_target, usernum, itemnum, args, seed, batch_size=64, maxlen=10, n_workers=1):
+    def __init__(self, user_input, user_target, usernum, itemnum, args, batch_size=64, maxlen=10, n_workers=1):
         self.result_queue = Queue(maxsize=n_workers * 10)
         self.processors = []
         for i in range(n_workers):
@@ -309,7 +310,7 @@ class WarpSamplerInputTarget(object):
                                                                    maxlen,
                                                                    self.result_queue,
                                                                    args,
-                                                                   seed
+                                                                   np.random.randint(2e9)
                                                                    )))
             self.processors[-1].daemon = True
             self.processors[-1].start()
@@ -729,6 +730,7 @@ class WarpSamplerInputTarget_byT(object):
 #             p.join()
 
 def data_partition_window_InputTarget_byT(f_train, f_target, args):
+    print("Data split by Time")
     usernum = 0
     itemnum = 0
     user_input = defaultdict(list)
@@ -787,6 +789,7 @@ def data_partition_window_InputTarget_byT(f_train, f_target, args):
 
 
 def data_partition_window_InputTarget_byP(fname, valid_percent, test_percent, train_percent):
+    print("Data split by Percentage")
     if valid_percent + test_percent > 0.6:
         print('the percent you select for val/test are too high')
         return None
@@ -875,6 +878,7 @@ def data_partition_window_InputTarget_byP(fname, valid_percent, test_percent, tr
 
 
 def data_partition_window_TrainOnly_byP(fname, valid_percent, test_percent, train_percent):
+    print("Data split by Percentage")
     if valid_percent + test_percent > 0.6:
         print('the percent you select for val/test are too high')
         return None
@@ -883,8 +887,6 @@ def data_partition_window_TrainOnly_byP(fname, valid_percent, test_percent, trai
     train_start = 1 - train_percent
     usernum = 0
     itemnum = 0
-    samplenum = 0
-    sample_actions = 32
     User = defaultdict(list)
     user_train_seq = {}
     user_train = {}
@@ -1501,11 +1503,17 @@ def evaluate_window_byT_withP90(model, dataset, args, eval_type='valid'):
         Recall += Recall_U
         Recall_U = 0
         # take the coverage@10 for all users
-        sorted_idx = list(zip(item_idx, predictions))
-        sorted_idx = sorted(sorted_idx, key=lambda x: x[1])
-        retrieved_idx = [x[0] for x in sorted_idx[:10]]
+        # Vectorized coverage calculation
+        item_idx_np = torch.tensor(item_idx).to(args.device)
+        sorted_indices = predictions.argsort()
+        retrieved_idx = item_idx_np[sorted_indices[:10]]
         # take the coverage@10 for all users
-        coverage_list += retrieved_idx
+        coverage_list += retrieved_idx.tolist()
+        # sorted_idx = list(zip(item_idx, predictions))
+        # sorted_idx = sorted(sorted_idx, key=lambda x: x[1])
+        # retrieved_idx = [x[0] for x in sorted_idx[:10]]
+        # # take the coverage@10 for all users
+        # coverage_list += retrieved_idx
         valid_user += 1
         if valid_user % 100 == 0:
             print('.', end="")
@@ -1577,11 +1585,18 @@ def evaluate_window_withP90(model, dataset, args, eval_type='valid'):
         Recall += Recall_U
         Recall_U = 0
         # take the coverage@10 for all users
-        sorted_idx = list(zip(item_idx, predictions))
-        sorted_idx = sorted(sorted_idx, key=lambda x: x[1])
-        retrieved_idx = [x[0] for x in sorted_idx[:10]]
+        # Vectorized coverage calculation
+        item_idx_np = torch.tensor(item_idx).to(args.device)
+        sorted_indices = predictions.argsort()
+        retrieved_idx = item_idx_np[sorted_indices[:10]]
         # take the coverage@10 for all users
-        coverage_list += retrieved_idx
+        coverage_list += retrieved_idx.tolist()
+
+        # sorted_idx = list(zip(item_idx, predictions))
+        # sorted_idx = sorted(sorted_idx, key=lambda x: x[1])
+        # retrieved_idx = [x[0] for x in sorted_idx[:10]]
+        # # take the coverage@10 for all users
+        # coverage_list += retrieved_idx
         valid_user += 1
         if valid_user % 100 == 0:
             print('.', end="")

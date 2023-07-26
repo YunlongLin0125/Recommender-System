@@ -528,7 +528,6 @@ class DenseAll(torch.nn.Module):
             # multi-head attention outputs
             seqs = Q + mha_outputs
             seqs = torch.transpose(seqs, 0, 1)
-
             seqs = self.forward_layernorms[i](seqs)
             seqs = self.forward_layers[i](seqs)
             seqs *= ~timeline_mask.unsqueeze(-1)

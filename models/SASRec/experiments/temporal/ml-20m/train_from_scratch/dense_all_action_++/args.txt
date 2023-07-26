@@ -7,6 +7,7 @@ finetune,False
 frozen_item,False
 hidden_units,50
 inference_only,False
+k_fold,0
 l2_emb,0.0
 load_emb,False
 log_dir,experiments/temporal/ml-20m/train_from_scratch/dense_all_action_++

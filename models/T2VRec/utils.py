@@ -822,11 +822,14 @@ def evaluate_T_withP90(model, dataset, args, eval_type='valid'):
         Recall_U = Recall_U / target_num
         Recall += Recall_U
         Recall_U = 0
-        sorted_idx = list(zip(item_idx, predictions))
-        sorted_idx = sorted(sorted_idx, key=lambda x: x[1])
-        retrieved_idx = [x[0] for x in sorted_idx[:10]]
+
+        # Vectorized coverage calculation
+        item_idx_np = torch.tensor(item_idx).to(args.device)
+        sorted_indices = predictions.argsort()
+        retrieved_idx = item_idx_np[sorted_indices[:10]]
         # take the coverage@10 for all users
-        coverage_list += retrieved_idx
+        coverage_list += retrieved_idx.tolist()
+
         # take the coverage@10 for all users
         valid_user += 1
         if valid_user % 100 == 0:

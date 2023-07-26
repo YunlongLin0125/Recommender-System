@@ -60,7 +60,6 @@ parser.add_argument('--load_emb', default=False, type=str2bool)
 parser.add_argument('--frozen_item', default=False, type=str2bool)
 parser.add_argument('--finetune', default=False, type=str2bool)
 parser.add_argument('--k_fold', default=0, type=int)
-parser.add_argument('--sample_seed', default=2e9, type=int)
 
 args = parser.parse_args()
 # dataset = data_partition(args.dataset)data
@@ -88,7 +87,7 @@ if __name__ == '__main__':
     best_score = 0
     max_patience = 3
     patience = 0
-
+    print("EXP: " + args.log_dir)
     if args.temporal:
         dataset = data_partition_window_InputTarget_byT(args.dataset + '_train', args.dataset + '_target', args)
         [user_input, user_target, usernum, itemnum, train_users, valid_users, test_users] = dataset
@@ -114,17 +113,11 @@ if __name__ == '__main__':
 
     else:
         ## percentage window
-        seeds = [42, 123, 456, 789, 159]
-        if 0 < args.sample_seed <= 5:
-            SEED = seeds[args.sample_seed - 1]
-        else:
-            SEED = seeds[0]
-
         if args.model == NORMAL_SASREC:  # normal sasrec but trained on the window train sequence
             dataset_window = data_partition_window_TrainOnly_byP(args.dataset, valid_percent=0.1, test_percent=0.1,
                                                                  train_percent=0.1)
             [_, user_train, user_valid, user_test, usernum, itemnum, _] = dataset_window
-            sampler = WarpSamplerTrainOnly(user_train, usernum, itemnum, args, SEED, batch_size=args.batch_size,
+            sampler = WarpSamplerTrainOnly(user_train, usernum, itemnum, args, batch_size=args.batch_size,
                                            maxlen=args.maxlen,
                                            n_workers=3)
             dataset = dataset_window
@@ -135,7 +128,7 @@ if __name__ == '__main__':
             dataset_window = data_partition_window_TrainOnly_byP(args.dataset, valid_percent=0.1, test_percent=0.1,
                                                                  train_percent=0.1)
             [sample_train, user_train, user_valid, user_test, usernum, itemnum, sample_num] = dataset_window
-            sampler = WarpSamplerTrainOnly(sample_train, sample_num, itemnum, args, SEED, batch_size=args.batch_size,
+            sampler = WarpSamplerTrainOnly(sample_train, sample_num, itemnum, args,   batch_size=args.batch_size,
                                            maxlen=args.maxlen,
                                            n_workers=3)
             dataset = dataset_window
@@ -148,7 +141,7 @@ if __name__ == '__main__':
             [user_input, user_target, user_train, user_valid, user_test, usernum, itemnum] = dataset_all_action
             # sampler = WarpSamplerAllAction(user_input, user_target, usernum, itemnum, batch_size=args.batch_size,
             #                                maxlen=args.maxlen, n_workers=3)
-            sampler = WarpSamplerInputTarget(user_input, user_target, usernum, itemnum, args, SEED,
+            sampler = WarpSamplerInputTarget(user_input, user_target, usernum, itemnum, args,
                                              batch_size=args.batch_size,
                                              maxlen=args.maxlen, n_workers=3)
             dataset = dataset_all_action
@@ -159,7 +152,7 @@ if __name__ == '__main__':
             dataset_dense_all = data_partition_window_InputTarget_byP(args.dataset, valid_percent=0.1,
                                                                       test_percent=0.1, train_percent=0.1)
             [user_input, user_target, user_train, user_valid, user_test, usernum, itemnum] = dataset_dense_all
-            sampler = WarpSamplerInputTarget(user_input, user_target, usernum, itemnum, args, SEED,
+            sampler = WarpSamplerInputTarget(user_input, user_target, usernum, itemnum, args,
                                              batch_size=args.batch_size,
                                              maxlen=args.maxlen, n_workers=3)
             dataset = dataset_dense_all
@@ -172,7 +165,7 @@ if __name__ == '__main__':
             [user_input, user_target, user_train, user_valid, user_test, usernum, itemnum] = dataset_dense_all
             # sampler = WarpSamplerDenseAllPlus(user_input, user_target, usernum, itemnum, batch_size=args.batch_size,
             #                                   maxlen=args.maxlen, n_workers=3)
-            sampler = WarpSamplerInputTarget(user_input, user_target, usernum, itemnum, args, SEED,
+            sampler = WarpSamplerInputTarget(user_input, user_target, usernum, itemnum, args,
                                              batch_size=args.batch_size,
                                              maxlen=args.maxlen, n_workers=3)
             dataset = dataset_dense_all
@@ -185,7 +178,7 @@ if __name__ == '__main__':
             [user_input, user_target, user_train, user_valid, user_test, usernum, itemnum] = dataset_dense_all
             # sampler = WarpSamplerIntegrated(user_input, user_target, usernum, itemnum, batch_size=args.batch_size,
             #                                 maxlen=args.maxlen, n_workers=3)
-            sampler = WarpSamplerInputTarget(user_input, user_target, usernum, itemnum, args, SEED,
+            sampler = WarpSamplerInputTarget(user_input, user_target, usernum, itemnum, args,
                                              batch_size=args.batch_size,
                                              maxlen=args.maxlen, n_workers=3)
             dataset = dataset_dense_all
@@ -198,7 +191,7 @@ if __name__ == '__main__':
             [user_input, user_target, user_train, user_valid, user_test, usernum, itemnum] = dataset_dense_all
             # sampler = WarpSamplerDenseAllPlusPlus(user_input, user_target, usernum, itemnum,
             # batch_size=args.batch_size, maxlen=args.maxlen, n_workers=3)
-            sampler = WarpSamplerInputTarget(user_input, user_target, usernum, itemnum, args, SEED,
+            sampler = WarpSamplerInputTarget(user_input, user_target, usernum, itemnum, args,
                                              batch_size=args.batch_size,
                                              maxlen=args.maxlen, n_workers=3)
             dataset = dataset_dense_all
@@ -211,7 +204,7 @@ if __name__ == '__main__':
             dataset_dense_all = data_partition_window_InputTarget_byP(args.dataset, valid_percent=0.1,
                                                                       test_percent=0.1, train_percent=0.1)
             [user_input, user_target, user_train, user_valid, user_test, usernum, itemnum] = dataset_dense_all
-            sampler = WarpSamplerInputTarget(user_input, user_target, usernum, itemnum, args, SEED,
+            sampler = WarpSamplerInputTarget(user_input, user_target, usernum, itemnum, args,
                                              batch_size=args.batch_size,
                                              maxlen=args.maxlen, n_workers=3)
             dataset = dataset_dense_all
@@ -254,6 +247,7 @@ if __name__ == '__main__':
         else:  # args.loss_function is Sampled softmax loss
             model = SASRecSampledLoss(usernum, itemnum, args).to(args.device)
 
+    ## initialise all parameters
     for name, param in model.named_parameters():
         try:
             torch.nn.init.xavier_normal_(param.data)
@@ -291,31 +285,36 @@ if __name__ == '__main__':
     model.train()  # enable model training
     epoch_start_idx = 1
     if args.state_dict_path is not None:
-        try:
-            model.load_state_dict(torch.load(args.state_dict_path, map_location=torch.device(args.device)))
-            tail = args.state_dict_path[args.state_dict_path.find('epoch=') + 6:]
-            epoch_start_idx = int(tail[:tail.find('.')]) + 1
-        except:  # in case your pytorch version is not 1.6 etc., pls debug by pdb if load weights failed
-            print('failed loading state_dicts, pls check file path: ', end="")
-            print(args.state_dict_path)
-            print('pdb enabled for your quick check, pls type exit() if you do not need it')
-            import pdb
-
-            pdb.set_trace()
+        print("Loading model")
+        # state_path = 'F_experiments/P/ml-1m/Scratch/bce/lr=0.001/normal_sasrec/2/normal_sasrec.best.lr=0.001.layer=2.head=1.hidden=50.maxlen=200.pth'
+        # state_path = 'F_experiments/P/ml-1m/Scratch/bce/lr=0.001/normal_sasrec/3/normal_sasrec.best.lr=0.001.layer=2.head=1.hidden=50.maxlen=200.pth'
+        state_path = 'F_experiments/P/ml-1m/Scratch/bce/lr=0.001/normal_sasrec/5/normal_sasrec.best.lr=0.001.layer=2.head=1.hidden=50.maxlen=200.pth'
+        model.load_state_dict(torch.load(state_path, map_location=torch.device(args.device)))
+        # try:
+        #     print('Loading model')
+        #     model.load_state_dict(torch.load(args.state_dict_path, map_location=torch.device(args.device)))
+        #     tail = args.state_dict_path[args.state_dict_path.find('epoch=') + 6:]
+        #     epoch_start_idx = int(tail[:tail.find('.')]) + 1
+        # except:  # in case your pytorch version is not 1.6 etc., pls debug by pdb if load weights failed
+        #     print('failed loading state_dicts, pls check file path: ', end="")
+        #     print(args.state_dict_path)
+        #     print('pdb enabled for your quick check, pls type exit() if you do not need it')
+        #     import pdb
+        #     pdb.set_trace()
 
     if args.inference_only:
         model.eval()
         if not args.window_eval:
             # t_test = evaluate(model, dataset, args)
             ## remove the normal evaluation now
-            t_test = evaluate_window(model, dataset, args, eval_type='test')
-            print('test (NDCG@10: %.4f, HR@10: %.4f)' % (t_test[0], t_test[1]))
+            t_test = evaluate_window_withP90(model, dataset, args, eval_type='test')
+            print('test (R@10: %.4f, P90coverage@10: %.4f)' % (t_test[0], t_test[1]))
         else:
             # t_test = evaluate_window_test(model, dataset, args)
             if not args.temporal:
-                t_test = evaluate_window(model, dataset, args, eval_type='test')
+                t_test = evaluate_window_withP90(model, dataset, args, eval_type='test')
             else:
-                t_test = evaluate_window_byT(model, dataset, args, eval_type='test')
+                t_test = evaluate_window_byT_withP90(model, dataset, args, eval_type='test')
             print('test (R@10: %.4f, P90coverage@10: %.4f)' % (t_test[0], t_test[1]))
 
     # ce_criterion = torch.nn.CrossEntropyLoss()
@@ -363,7 +362,7 @@ if __name__ == '__main__':
                     loss = bce_criterion(pos_logits, pos_labels)
                     loss += bce_criterion(neg_logits, neg_labels)
                 else:
-                    indices = np.where(pos != 0)
+                    indices = (seq != 0)
                     # select from no padding
                     loss = bce_criterion(pos_logits[indices], pos_labels[indices])
                     loss += bce_criterion(neg_logits[indices], neg_labels[indices])
@@ -372,6 +371,7 @@ if __name__ == '__main__':
                 adam_optimizer.step()
                 print("loss in epoch {} iteration {}: {}".format(epoch, step,
                                                                  loss.item()))  # expected 0.4~0.6 after init few epochs
+
         elif args.loss_function == SAMPLED_SOFTMAX:
             # sampled softmax loss
             for step in range(num_batch):  # tqdm(range(num_batch), total=num_batch, ncols=70, leave=False, unit='b'):
@@ -448,7 +448,6 @@ if __name__ == '__main__':
                 #     t_test = evaluate_window_byT(model, dataset, args, eval_type='test')
                 # print('epoch:%d, time: %f(s), valid (R@10: %.4f, nn: %.4f), test (R@10: %.4f, nn: %.4f)'
                 #       % (epoch, T, t_valid[0], t_valid[1], t_test[0], t_test[1]))
-
                 ## new early stop
                 if not args.temporal:
                     t_valid = evaluate_window(model, dataset, args, eval_type='valid')
@@ -490,7 +489,6 @@ if __name__ == '__main__':
         #                          args.hidden_units,
         #                          args.maxlen)
         #     torch.save(model.state_dict(), os.path.join(folder, fname))
-
     ## new: Final model performance calculation
     model.load_state_dict(torch.load(os.path.join(args.log_dir, fname)))
     if not args.temporal:
