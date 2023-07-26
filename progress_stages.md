@@ -382,6 +382,19 @@ manually get average
 
 
 
+## 726 (Wed.) Experiments Log
+
+```
+EXP1.
+pos, neg
+sasrec(1, 1)
+sasrec-sampled (1, 1)
+all_action (targets, 10 negs)
+dense_all_action (1, 10)
+```
+
+
+
 # Formal Experiments (Carry out from 7.25)
 
 ```
@@ -417,6 +430,8 @@ Main Eval Task: How well each can predict all future purchases over the next k d
 
 
 
+
+
 # TODO
 
 1. <span style="color:red">incorporate relative time features </span>
@@ -426,3 +441,4 @@ Main Eval Task: How well each can predict all future purchases over the next k d
 5. Hyperparameter tuning (optional)
 6. <span style="color:blue">Try different data splitting strategy (optional)</span>
 7. More datasets (optional)
+8. Check the code working of percentage window.
