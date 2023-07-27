@@ -260,14 +260,16 @@ if __name__ == '__main__':
     if args.load_emb:
         source_model = SASRecSampledLoss(usernum, itemnum, args).to(args.device)  # This is your source model.
         if 'ml-1m' in args.dataset:
-            source_model.load_state_dict(torch.load('experiments/percentage/ml-1m/item_emb/lr0.001/normal_sasrec'
-                                                    '.epoch=261.lr=0.001.layer=2.head=1.hidden=50.maxlen=200.pth'))
-        elif 'retailrocket' in args.dataset:
-            source_model.load_state_dict(torch.load('experiments/percentage/retailrocket/item_emb/normal_sasrec.epoch'
-                                                    '=61.lr=0.001.layer=2.head=1.hidden=50.maxlen=200.pth'))
-        elif 'ml-20m' in args.dataset:
-            source_model.load_state_dict(torch.load('experiments/temporal/ml-20m/item_emb/normal_sasrec.epoch=50.lr=0'
+            source_model.load_state_dict(torch.load('F_experiments/P/ml-1m/transfer/item_emb/normal_sasrec.best.lr=0'
                                                     '.001.layer=2.head=1.hidden=50.maxlen=200.pth'))
+            # source_model.load_state_dict(torch.load('experiments/percentage/ml-1m/item_emb/lr0.001/normal_sasrec'
+            #                                         '.epoch=261.lr=0.001.layer=2.head=1.hidden=50.maxlen=200.pth'))
+        # elif 'retailrocket' in args.dataset:
+            # source_model.load_state_dict(torch.load('experiments/percentage/retailrocket/item_emb/normal_sasrec.epoch'
+            #                                         '=61.lr=0.001.layer=2.head=1.hidden=50.maxlen=200.pth'))
+        # elif 'ml-20m' in args.dataset:
+        #     source_model.load_state_dict(torch.load('experiments/temporal/ml-20m/item_emb/normal_sasrec.epoch=50.lr=0'
+        #                                             '.001.layer=2.head=1.hidden=50.maxlen=200.pth'))
 
         item_emb_param = source_model.item_emb.weight.data.clone()
         model.item_emb.weight.data = item_emb_param
@@ -288,8 +290,8 @@ if __name__ == '__main__':
         print("Loading model")
         # state_path = 'F_experiments/P/ml-1m/Scratch/bce/lr=0.001/normal_sasrec/2/normal_sasrec.best.lr=0.001.layer=2.head=1.hidden=50.maxlen=200.pth'
         # state_path = 'F_experiments/P/ml-1m/Scratch/bce/lr=0.001/normal_sasrec/3/normal_sasrec.best.lr=0.001.layer=2.head=1.hidden=50.maxlen=200.pth'
-        state_path = 'F_experiments/P/ml-1m/Scratch/bce/lr=0.001/normal_sasrec/5/normal_sasrec.best.lr=0.001.layer=2.head=1.hidden=50.maxlen=200.pth'
-        model.load_state_dict(torch.load(state_path, map_location=torch.device(args.device)))
+        # state_path = 'F_experiments/P/ml-1m/Scratch/bce/lr=0.001/normal_sasrec/5/normal_sasrec.best.lr=0.001.layer=2.head=1.hidden=50.maxlen=200.pth'
+        model.load_state_dict(torch.load(args.state_dict_path, map_location=torch.device(args.device)))
         # try:
         #     print('Loading model')
         #     model.load_state_dict(torch.load(args.state_dict_path, map_location=torch.device(args.device)))

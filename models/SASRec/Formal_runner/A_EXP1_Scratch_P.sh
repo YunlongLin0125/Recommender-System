@@ -35,12 +35,12 @@ cd ..
 
 
 #----------------------------------dense aLL action
-python main.py --dataset=processed/ml-1m --maxlen=200 --dropout_rate=0.2 --device=cuda --window_eval=true --eval_epoch=20 --num_epochs=1000  --lr=0.001 --loss_function=bce --log_dir=F_experiments/P/ml-1m/Scratch/bce/lr=0.001/dense_all_action/1 --model=dense_all_action
+# python main.py --dataset=processed/ml-1m --maxlen=200 --dropout_rate=0.2 --device=cuda --window_eval=true --eval_epoch=20 --num_epochs=1000  --lr=0.001 --loss_function=bce --log_dir=F_experiments/P/ml-1m/Scratch/bce/lr=0.001/dense_all_action/1 --model=dense_all_action
 
-python main.py --dataset=processed/ml-1m --maxlen=200 --dropout_rate=0.2 --device=cuda --window_eval=true --eval_epoch=20 --num_epochs=1000  --lr=0.001 --loss_function=bce --log_dir=F_experiments/P/ml-1m/Scratch/bce/lr=0.001/dense_all_action/2 --model=dense_all_action
+# python main.py --dataset=processed/ml-1m --maxlen=200 --dropout_rate=0.2 --device=cuda --window_eval=true --eval_epoch=20 --num_epochs=1000  --lr=0.001 --loss_function=bce --log_dir=F_experiments/P/ml-1m/Scratch/bce/lr=0.001/dense_all_action/2 --model=dense_all_action
 
-python main.py --dataset=processed/ml-1m --maxlen=200 --dropout_rate=0.2 --device=cuda --window_eval=true --eval_epoch=20 --num_epochs=1000  --lr=0.001 --loss_function=bce --log_dir=F_experiments/P/ml-1m/Scratch/bce/lr=0.001/dense_all_action/3 --model=dense_all_action
+# python main.py --dataset=processed/ml-1m --maxlen=200 --dropout_rate=0.2 --device=cuda --window_eval=true --eval_epoch=20 --num_epochs=1000  --lr=0.001 --loss_function=bce --log_dir=F_experiments/P/ml-1m/Scratch/bce/lr=0.001/dense_all_action/3 --model=dense_all_action
 
-python main.py --dataset=processed/ml-1m --maxlen=200 --dropout_rate=0.2 --device=cuda --window_eval=true --eval_epoch=20 --num_epochs=1000  --lr=0.001 --loss_function=bce --log_dir=F_experiments/P/ml-1m/Scratch/bce/lr=0.001/dense_all_action/4 --model=dense_all_action
+# python main.py --dataset=processed/ml-1m --maxlen=200 --dropout_rate=0.2 --device=cuda --window_eval=true --eval_epoch=20 --num_epochs=1000  --lr=0.001 --loss_function=bce --log_dir=F_experiments/P/ml-1m/Scratch/bce/lr=0.001/dense_all_action/4 --model=dense_all_action
 
-python main.py --dataset=processed/ml-1m --maxlen=200 --dropout_rate=0.2 --device=cuda --window_eval=true --eval_epoch=20 --num_epochs=1000  --lr=0.001 --loss_function=bce --log_dir=F_experiments/P/ml-1m/Scratch/bce/lr=0.001/dense_all_action/5 --model=dense_all_action
+# python main.py --dataset=processed/ml-1m --maxlen=200 --dropout_rate=0.2 --device=cuda --window_eval=true --eval_epoch=20 --num_epochs=1000  --lr=0.001 --loss_function=bce --log_dir=F_experiments/P/ml-1m/Scratch/bce/lr=0.001/dense_all_action/5 --model=dense_all_action

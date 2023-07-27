@@ -382,15 +382,33 @@ manually get average
 
 
 
-## 726 (Wed.) Experiments Log
+## 726 (Wed.) 
 
+## Experiments Log
 ```
 EXP1.
 pos, neg
 sasrec(1, 1)
 sasrec-sampled (1, 1)
-all_action (targets, 10 negs)
-dense_all_action (1, 10)
+Window predicts (targets, 10 negs)
+```
+
+
+
+
+
+```
+1. Experiment Results Collection (A_EXP1, A_EXP2, A_EXP3, A_EXP4)
+2. Code Preparing for temporal K-fold CrossValidation
+```
+
+
+
+## Q
+
+```
+1. recommendation accuracy = Recall
+2. 
 ```
 
 

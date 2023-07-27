@@ -764,27 +764,25 @@ def data_partition_window_InputTarget_byT(f_train, f_target, args):
     valid_users = users[int(usernum * train_split):int(usernum * valid_split)]
     test_users = users[int(usernum * valid_split):]
     ## cross Validation
-    # fold_users = train_users + valid_users
-    # rng.shuffle(fold_users)
-    # unit_len = len(train_users + valid_users)
-    ## if args.k_fold == 1:
-    # valid_users = fold_users[:unit_len]
-    # train_users = fold_users[unit_len:]
-    ## elif args.k_fold == 2:
-    # valid_users = fold_users[unit_len*1: unit_len*2]
-    # train_users = fold_users[:unit_len] + fold_users[unit_len*2:]
-    ## elif args.k_fold == 3:
-    # valid_users = fold_users[unit_len*2: unit_len*3]
-    # train_users = fold_users[:unit_len*2] + fold_users[unit_len*3:]
-    ## elif args.k_fold == 4:
-    # valid_users = fold_users[unit_len*3: unit_len*4]
-    # train_users = fold_users[:unit_len*3] + fold_users[unit_len*4:]
-    ## elif args.k_fold == 5:
-    # valid_users = fold_users[unit_len*4:]
-    # train_users = fold_users[:unit_len*4]
-    ## else:
-    # pass
-
+    if args.k_fold != 0:
+        fold_users = train_users + valid_users
+        rng.shuffle(fold_users)
+        unit_len = len(fold_users) // 5
+        if args.k_fold == 1:
+            valid_users = fold_users[:unit_len]
+            train_users = fold_users[unit_len:]
+        elif args.k_fold == 2:
+            valid_users = fold_users[unit_len * 1: unit_len * 2]
+            train_users = fold_users[:unit_len * 1] + fold_users[unit_len * 2:]
+        elif args.k_fold == 3:
+            valid_users = fold_users[unit_len * 2: unit_len * 3]
+            train_users = fold_users[:unit_len * 2] + fold_users[unit_len * 3:]
+        elif args.k_fold == 4:
+            valid_users = fold_users[unit_len * 3: unit_len * 4]
+            train_users = fold_users[:unit_len * 3] + fold_users[unit_len * 4:]
+        elif args.k_fold == 5:
+            valid_users = fold_users[unit_len * 4:]
+            train_users = fold_users[:unit_len * 4]
     return [user_input, user_target, usernum, itemnum, train_users, valid_users, test_users]
 
 

@@ -609,25 +609,25 @@ def data_partition_window_InputTarget_byT(f_train, f_target, args):
     train_users = users[:int(usernum * train_split)]
     valid_users = users[int(usernum * train_split):int(usernum * valid_split)]
     test_users = users[int(usernum * valid_split):]
-    #
-    # fold_users = train_users + valid_users
-    # rng.shuffle(fold_users)
-    # unit_len = len(train_users + valid_users)
-    ## if args.k_fold == 1:
-    # valid_users = fold_users[:unit_len]
-    # train_users = fold_users[unit_len:]
-    ## elif args.k_fold == 2:
-    # valid_users = fold_users[unit_len*1: unit_len*2]
-    # train_users = fold_users[:unit_len] + fold_users[unit_len*2:]
-    ## elif args.k_fold == 3:
-    # valid_users = fold_users[unit_len*2: unit_len*3]
-    # train_users = fold_users[:unit_len*2] + fold_users[unit_len*3:]
-    ## elif args.k_fold == 4:
-    # valid_users = fold_users[unit_len*3: unit_len*4]
-    # train_users = fold_users[:unit_len*3] + fold_users[unit_len*4:]
-    ## elif args.k_fold == 5:
-    # valid_users = fold_users[unit_len*4:]
-    # train_users = fold_users[:unit_len*4]
+    if args.k_fold != 0:
+        fold_users = train_users + valid_users
+        rng.shuffle(fold_users)
+        unit_len = len(fold_users) // 5
+        if args.k_fold == 1:
+            valid_users = fold_users[:unit_len]
+            train_users = fold_users[unit_len:]
+        elif args.k_fold == 2:
+            valid_users = fold_users[unit_len * 1: unit_len * 2]
+            train_users = fold_users[:unit_len * 1] + fold_users[unit_len * 2:]
+        elif args.k_fold == 3:
+            valid_users = fold_users[unit_len * 2: unit_len * 3]
+            train_users = fold_users[:unit_len * 2] + fold_users[unit_len * 3:]
+        elif args.k_fold == 4:
+            valid_users = fold_users[unit_len * 3: unit_len * 4]
+            train_users = fold_users[:unit_len * 3] + fold_users[unit_len * 4:]
+        elif args.k_fold == 5:
+            valid_users = fold_users[unit_len * 4:]
+            train_users = fold_users[:unit_len * 4]
 
     if args.model == NORMAL_SASREC:
         # next item prediction focus on the whole train seq rather than only input sequence.

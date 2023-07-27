@@ -194,13 +194,11 @@ if __name__ == '__main__':
     model.train()  # enable model training
     epoch_start_idx = 1
     if args.state_dict_path is not None:
-        try:
-            model.load_state_dict(torch.load(args.state_dict_path))
-            tail = args.state_dict_path[args.state_dict_path.find('epoch=') + 6:]
-            epoch_start_idx = int(tail[:tail.find('.')]) + 1
-        except:
-            print('failed loading state_dicts, pls check file path: ', end="")
-            print(args.state_dict_path)
+        print("Loading model")
+        state_path = 'experiments/ml-20m/pinnerformer_earlystop/frozen_item/' \
+                     'all_action/all_action.best.lr=0.001.layer=2.head=1.hidden=50.maxlen=200.pth'
+        model.load_state_dict(torch.load(state_path, map_location=torch.device(args.device)))
+        print("Model Loaded")
 
     bce_criterion = torch.nn.BCEWithLogitsLoss()
 
@@ -210,7 +208,7 @@ if __name__ == '__main__':
             t_test = evaluate_T_withP90(model, dataset, args, 'test')
             # t_valid = evaluate_T(model, dataset, args, 'valid')
         else:
-            t_test = evaluate(model, dataset, args, 'test')
+            t_test = evaluate_T_withP90(model, dataset, args, 'test')
             # t_valid = evaluate(model, dataset, args, 'valid')
         print('test (Recall@10: %.4f, P90: %.4f)' % (t_test[0], t_test[1]))
         f.write(str(t_test) + '\n')
