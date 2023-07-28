@@ -1,0 +1,7 @@
+--time: 137.2857382297516, epoch: 5, Score: (0.5529168116323913, 0.66)
+--time: 273.1649663448334, epoch: 10, Score: (0.5461318658690587, 0.66)
+--time: 409.1721134185791, epoch: 15, Score: (0.5446672690388256, 0.66)
+--time: 545.1768445968628, epoch: 20, Score: (0.5372700185138947, 0.66)
+Early stopping due to lack of improvement in validation loss.
+Final Model Performance : (0.5476947252557467, 0.16731178106089517)
+Execution time: 766.4767909049988seconds
