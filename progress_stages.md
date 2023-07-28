@@ -404,6 +404,25 @@ Window predicts (targets, 10 negs)
 
 
 
+## 727 (Thur.)
+
+```
+1. Code Running
+2. first part of introduction
+```
+
+
+
+## 728 (Fri.)
+
+```
+1. Exp Running
+2. Eddie
+3. Introduction
+```
+
+
+
 ## Q
 
 ```
