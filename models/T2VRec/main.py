@@ -5,10 +5,10 @@ import pickle
 import argparse
 import sys
 from model_sasrec import SASRecSampledLoss, SASRec
+# from memory_profiler import profile
 from model import T2V_SASRec, T2V_AllAction, T2V_DenseAllAction, T2V_DenseAllPlus
 from model import T2V_SASRecSampledLoss, T2V_AllActionSampledLoss
 from model import T2V_DenseAllActionSampledLoss, T2V_DenseAllPlusSampledLoss
-from tqdm import tqdm
 from utils import *
 
 os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
@@ -70,7 +70,9 @@ with open(os.path.join(args.log_dir, 'args.txt'), 'w') as f:
     f.write('\n'.join([str(k) + ',' + str(v) for k, v in sorted(vars(args).items(), key=lambda x: x[0])]))
 f.close()
 
-if __name__ == '__main__':
+
+# @profile
+def run():
     # dataset split
     # if args.percentage:
     #     dataset = data_partition_window_InputTarget_byP(args.dataset, valid_percent=0.1, test_percent=0.1,
@@ -80,6 +82,7 @@ if __name__ == '__main__':
     best_score = 0
     max_patience = 3
     patience = 0
+    print("EXP: " + args.log_dir)
     if args.temporal:
         dataset = data_partition_window_InputTarget_byT(args.dataset + '_train_withtime',
                                                         args.dataset + '_target_withtime', args)
@@ -174,15 +177,12 @@ if __name__ == '__main__':
 
     # load item embedding
     if args.load_emb:
-        # source_model = T2V_SASRecSampledLoss(usernum, itemnum, args).to(args.device)
-        source_model = SASRecSampledLoss(usernum, itemnum, args).to(args.device)
         if 'ml-20m' in args.dataset:
-            # source_model.load_state_dict(torch.load('experiments/item_emb/normal_sasrec.epoch=100.lr=0.003.layer=2'
-            #                                         '.head=1.hidden=50.maxlen=50.pth'))
-            source_model.load_state_dict(torch.load('experiments/item_emb/normal_sasrec.epoch=50.lr=0.001.layer=2'
-                                                    '.head=1.hidden=50.maxlen=200.pth'))
-        item_emb_param = source_model.item_emb.weight.data.clone()
-        model.item_emb.weight.data = item_emb_param
+            path = 'F_experiments/T/ml-20m/transfer/item_emb/normal_sasrec.best.lr=0.001.layer=2.head=1.hidden=50.maxlen=200.pth'
+        item_emb_param = torch.load(path, map_location=args.device)['item_emb.weight']
+        model.item_emb.weight.data = item_emb_param.clone()
+        del item_emb_param  # Free the memory
+        torch.cuda.empty_cache()  # Clear GPU cache
         print("Load item embedding")
 
     # freeze item embedding
@@ -190,6 +190,8 @@ if __name__ == '__main__':
         for param in model.item_emb.parameters():
             param.requires_grad = False
         print("Frozen item embedding")
+
+    return
 
     model.train()  # enable model training
     epoch_start_idx = 1
@@ -342,3 +344,7 @@ if __name__ == '__main__':
     f.close()
     sampler.close()
     print("Done")
+
+
+if __name__ == '__main__':
+    run()

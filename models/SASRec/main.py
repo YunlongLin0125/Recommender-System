@@ -2,7 +2,7 @@ import os
 import time
 import torch
 import argparse
-
+# from memory_profiler import profile
 from model import *
 from utils import *
 import time
@@ -71,19 +71,9 @@ with open(os.path.join(args.log_dir, 'args.txt'), 'w') as f:
 f.close()
 
 
-def connect_input_target(user_input, user_target, train_users):
-    count = 0
-    user_train = {}
-    for u in train_users:
-        u_input = user_input[u]
-        u_target = user_target[u]
-        for t in u_target:
-            count += 1
-            user_train[count] = u_input + [t]
-    return user_train, count
 
-
-if __name__ == '__main__':
+# @profile
+def func_run():
     best_score = 0
     max_patience = 3
     patience = 0
@@ -91,25 +81,23 @@ if __name__ == '__main__':
     if args.temporal:
         dataset = data_partition_window_InputTarget_byT(args.dataset + '_train', args.dataset + '_target', args)
         [user_input, user_target, usernum, itemnum, train_users, valid_users, test_users] = dataset
-        if args.model == SASREC_SAMPLED:
-            # temporal window sasrec sampled model
-            sample_train, sample_num = connect_input_target(user_input, user_target, train_users)
-            sampler = WarpSamplerTrainOnly(sample_train, sample_num, itemnum, args, batch_size=args.batch_size,
-                                           maxlen=args.maxlen, n_workers=3)
-            dataset = dataset
-            sample_train = sample_train
-            sample_num = sample_num
-
-        else:
-            sampler = WarpSamplerInputTarget_byT(user_input, user_target, train_users, usernum, itemnum, args,
-                                                 batch_size=args.batch_size, maxlen=args.maxlen, n_workers=3)
-            dataset = dataset
-            sample_train = user_input
-            sample_num = usernum
-            target_len = 0
-            for u in user_target:
-                target_len += len(user_target[u])
-            print('average sequence length for target window: %.2f' % (target_len / len(user_target)))
+        # if args.model == SASREC_SAMPLED:
+        #     # temporal window sasrec sampled model
+        #     sample_train, sample_num = connect_input_target(user_input, user_target, train_users)
+        #     sampler = WarpSamplerTrainOnly(sample_train, sample_num, itemnum, args, batch_size=args.batch_size,
+        #                                    maxlen=args.maxlen, n_workers=3)
+        #     dataset = dataset
+        #     sample_train = sample_train
+        #     sample_num = sample_num
+        sampler = WarpSamplerInputTarget_byT(user_input, user_target, train_users, usernum, itemnum, args,
+                                             batch_size=args.batch_size, maxlen=args.maxlen, n_workers=3)
+        dataset = dataset
+        sample_train = user_input
+        sample_num = usernum
+        target_len = 0
+        for u in user_target:
+            target_len += len(user_target[u])
+        print('average sequence length for target window: %.2f' % (target_len / len(user_target)))
 
     else:
         ## percentage window
@@ -128,7 +116,7 @@ if __name__ == '__main__':
             dataset_window = data_partition_window_TrainOnly_byP(args.dataset, valid_percent=0.1, test_percent=0.1,
                                                                  train_percent=0.1)
             [sample_train, user_train, user_valid, user_test, usernum, itemnum, sample_num] = dataset_window
-            sampler = WarpSamplerTrainOnly(sample_train, sample_num, itemnum, args,   batch_size=args.batch_size,
+            sampler = WarpSamplerTrainOnly(sample_train, sample_num, itemnum, args, batch_size=args.batch_size,
                                            maxlen=args.maxlen,
                                            n_workers=3)
             dataset = dataset_window
@@ -210,6 +198,7 @@ if __name__ == '__main__':
             dataset = dataset_dense_all
             sample_train = user_input
             sample_num = usernum
+    print("Sampler Generated")
     f = open(os.path.join(args.log_dir, 'log.txt'), 'w')
     num_batch = len(sample_train) // args.batch_size  # tail? + ((len(user_train) % args.batch_size) != 0)
     cc = 0.0
@@ -246,7 +235,7 @@ if __name__ == '__main__':
             # no ReLU activation in original SASRec implementation?
         else:  # args.loss_function is Sampled softmax loss
             model = SASRecSampledLoss(usernum, itemnum, args).to(args.device)
-
+    print("model Generated")
     ## initialise all parameters
     for name, param in model.named_parameters():
         try:
@@ -258,21 +247,23 @@ if __name__ == '__main__':
     # model.apply(torch.nn.init.xavier_uniform_)
     # Transfer learning framework
     if args.load_emb:
-        source_model = SASRecSampledLoss(usernum, itemnum, args).to(args.device)  # This is your source model.
+        # source_model = SASRecSampledLoss(usernum, itemnum, args).to(args.device)  # This is your source model.
         if 'ml-1m' in args.dataset:
-            source_model.load_state_dict(torch.load('F_experiments/P/ml-1m/transfer/item_emb/normal_sasrec.best.lr=0'
-                                                    '.001.layer=2.head=1.hidden=50.maxlen=200.pth'))
-            # source_model.load_state_dict(torch.load('experiments/percentage/ml-1m/item_emb/lr0.001/normal_sasrec'
-            #                                         '.epoch=261.lr=0.001.layer=2.head=1.hidden=50.maxlen=200.pth'))
-        # elif 'retailrocket' in args.dataset:
-            # source_model.load_state_dict(torch.load('experiments/percentage/retailrocket/item_emb/normal_sasrec.epoch'
-            #                                         '=61.lr=0.001.layer=2.head=1.hidden=50.maxlen=200.pth'))
-        # elif 'ml-20m' in args.dataset:
-        #     source_model.load_state_dict(torch.load('experiments/temporal/ml-20m/item_emb/normal_sasrec.epoch=50.lr=0'
-        #                                             '.001.layer=2.head=1.hidden=50.maxlen=200.pth'))
+            path = 'F_experiments/P/ml-1m/transfer/item_emb/normal_sasrec.best.lr=0.001.layer=2.head=1.hidden=50.maxlen=200.pth'
 
-        item_emb_param = source_model.item_emb.weight.data.clone()
-        model.item_emb.weight.data = item_emb_param
+        elif 'ml-20m' in args.dataset:
+            path = 'F_experiments/T/ml-20m/transfer/item_emb/normal_sasrec.best.lr=0.001.layer=2.head=1.hidden=50.maxlen=200.pth'
+
+        item_emb_param = torch.load(path, map_location=args.device)['item_emb.weight']
+        model.item_emb.weight.data = item_emb_param.clone()
+        del item_emb_param  # Free the memory
+        torch.cuda.empty_cache()  # Clear GPU cache
+        print("Load item embedding")
+        # # item_emb_param = source_model.item_emb.weight.data.clone()
+        # source_model = None
+        # model.item_emb.weight.data = item_emb_param
+        # item_emb_param = None
+        # print("Load item embedding")
         # if not args.temporal:
         #     t_valid = evaluate_window(model, dataset, args, eval_type='valid')
         #     t_test = evaluate_window(model, dataset, args, eval_type='test')
@@ -286,6 +277,7 @@ if __name__ == '__main__':
 
     model.train()  # enable model training
     epoch_start_idx = 1
+
     if args.state_dict_path is not None:
         print("Loading model")
         # state_path = 'F_experiments/P/ml-1m/Scratch/bce/lr=0.001/normal_sasrec/2/normal_sasrec.best.lr=0.001.layer=2.head=1.hidden=50.maxlen=200.pth'
@@ -504,3 +496,7 @@ if __name__ == '__main__':
     f.write("Execution time: " + str(execution_time) + "seconds" + '\n')
     f.close()
     sampler.close()
+
+
+if __name__ == '__main__':
+    func_run()
