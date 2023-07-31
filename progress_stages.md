@@ -423,11 +423,29 @@ Window predicts (targets, 10 negs)
 
 
 
+## 730 (Sun)
+
+```
+1. finish the draft writing for introduction part.
+2. run exp.
+```
+
+
+
+## 731 (Mon.)
+
+```
+1. complete all experiments and get results written on excel file.
+2. 
+```
+
+
+
 ## Q
 
 ```
 1. recommendation accuracy = Recall
-2. 
+
 ```
 
 

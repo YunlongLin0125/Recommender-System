@@ -2,7 +2,7 @@ batch_size,128
 dataset,ml-20m
 device,cuda
 dropout_rate,0.2
-eval_epoch,10
+eval_epoch,5
 finetune,False
 frozen_item,False
 hidden_units,50
