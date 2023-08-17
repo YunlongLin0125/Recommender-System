@@ -416,6 +416,10 @@ def func_run():
             model.eval()
             t1 = time.time() - t0
             T += t1
+            print(args.log_dir)
+            print("--time: " + str(T) + "-- avg time " + str(T/args.eval_epoch))
+            f.write("epoch: " + str(epoch) + "--time: " + str(T) + "-- avg time " + str(T/args.eval_epoch) + '\n')
+            return
             print('Evaluating', end='')
             if not args.window_eval:
                 # t_valid = evaluate_valid(model, dataset, args)

@@ -191,8 +191,6 @@ def run():
             param.requires_grad = False
         print("Frozen item embedding")
 
-    return
-
     model.train()  # enable model training
     epoch_start_idx = 1
     if args.state_dict_path is not None:
@@ -290,6 +288,10 @@ def run():
             model.eval()
             t1 = time.time() - t0
             T += t1
+            print(args.log_dir)
+            print("--time: " + str(T) + "-- avg time " + str(T / args.eval_epoch))
+            f.write("--time: " + str(T) + "-- avg time " + str(T / args.eval_epoch) + '\n')
+            return
             print('Evaluating', end='')
             # if args.val_loss:
             #     valid_loss = Loss_calculation(user_input, user_target, valid_users, model, args)
@@ -324,8 +326,8 @@ def run():
                 f.flush()
                 print('Early stopping due to lack of improvement in validation loss.')
                 break
-        t0 = time.time()
-        model.train()
+            t0 = time.time()
+            model.train()
         # if epoch == args.num_epochs:
         #     folder = args.log_dir
         #     fname = '{}.epoch={}.lr={}.layer={}.head={}.hidden={}.maxlen={}.pth'

@@ -60,7 +60,7 @@ class TimeAwareMultiHeadAttention(torch.nn.Module):
         # incorporate absolute time in each item ()
         attn_weights += Q_.matmul(torch.transpose(abs_pos_K_, 1, 2))
 
-        # incorporate relative time in each item (time interval)
+        # incorporate relative time in each item (time interval) 
         attn_weights += time_matrix_K_.matmul(Q_.unsqueeze(-1)).squeeze(-1)
 
         # seq length adaptive scaling

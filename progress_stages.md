@@ -436,7 +436,9 @@ Window predicts (targets, 10 negs)
 
 ```
 1. complete all experiments and get results written on excel file.
-2. 
+2. Achievement part
+just some concise words to do some summurification
+3. PinnerSage
 ```
 
 
@@ -445,8 +447,208 @@ Window predicts (targets, 10 negs)
 
 ```
 1. recommendation accuracy = Recall
+```
+
+
+
+## 801 (Tue.)
 
 ```
+1. Background Writing
+```
+
+
+
+## 802 (Wed.)
+
+```
+1. Conceptual Design Writing
+```
+
+
+
+## 803(Thurs.)
+
+```
+1. Methodology Writing
+```
+
+
+
+## 804 (Fri.)
+
+```
+1. Methodology Writing
+```
+
+
+
+## 806 (Sun.)
+
+```
+1. finish methdology
+```
+
+
+
+## 807 (Mon.)
+
+```
+1. read feadback
+2. EDA on dataset
+3. Table make for experiment results
+4. * Modified the sampled softmax loss
+```
+
+## Q
+
+```latex
+What is the probability
+transfer learning related work: Pinnerformer
+achievement (differnt from experiment results) just conclusion of findings?
+I will send What I have done by the end of this week. (check possible or not)
+Rest part,
+Presentation. (online vs. offline.) 
+eddie problem (*) different node (different training time?) Fair?
+
+DO you wanna see David feedback?
+CZ I send you the email seperately, I can send you all in one email
+70\%
+```
+
+
+
+## 808 (Tue.)
+
+```
+EXP_1
+```
+
+
+
+## 809 (Wed.)
+
+```
+EXP_2
+```
+
+
+
+## 810 (Thur.)
+
+```
+Dis
+```
+
+
+
+## 811 (Fri.)
+
+```
+Conclusion
+```
+
+
+
+## 812 (Sat.)
+
+```
+1. modification on previous feedback
+2. draft submission
+```
+
+
+
+## 813 (Sun.)
+
+```
+
+```
+
+
+
+## 814 (Mon.)
+
+```
+1. Receive Draft.
+2. Simple improvement on the draft.
+```
+
+
+
+## 815
+
+```
+1. shrink the related work (conventional)
+2. Make the introduction more readable
+3. define the transfer learning, name it.
+4. duplicated window definition
+```
+
+
+
+## 816
+
+```
+1. handle GRU4Rec
+2. shrink the research contribution. (How)
+3. may be limited some figures.
+```
+
+
+
+## question
+
+```
+1. Transfer learning actually better
+2. rating 3.5 (all implicit no explicit)
+3. question on P32 
+4. recall@10 misunderstand
+5. SASRec-sampled how should I call it.
+6. what you mean by the basis of their loss? raw loss value?
+
+```
+
+## TODO
+
+```
+1. +(Optional) Basis of loss
+2. ++(Optional) Confidence Interval
+3. shrink the related work
+4. shrink the research contribution
+5. Make the introduction more readable
+6. define the transfer learning, name it.
+7. duplicated window definition
+```
+
+
+
+
+
+## limitation of work
+
+```
+1. too few item features (only the item itself)
+2. negative sampling
+3. weak assumption
+4. sampling strategy
+5. data processing (num of items in train and target sequence) challenge dataset
+6. the dataset is dense (sparsity)
+7. fre
+8. real world appliaction
+```
+
+
+
+## TODO
+
+```
+complexity analysis
+epoch time
+multi-day window(*)cmd
+```
+
+
 
 
 
@@ -482,9 +684,6 @@ Main Eval Task: How well each can predict all future purchases over the next k d
 3. TL & TFS： next item predictor vs. temporal window predictor
 4. TL & TFS: Temporal window predictor vs. Ti temoral window predictor
 ```
-
-
-
 
 
 # TODO
