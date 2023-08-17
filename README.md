@@ -3,6 +3,8 @@ This is an implementation of proposed time-aware transfer learning-based window 
 
 Welcome to feedback and suggestion.
 
+All experiments are tested under a windows desktop (RTX 3060 GPU) with torch version 1.13.1, torchvision 0.14.1 and python 3.9.
+
 ## folder structure
 
 - **Recommender-System/**
@@ -37,10 +39,15 @@ Welcome to feedback and suggestion.
 **Formal_runner/**: bash files to carry out the formal experiments in `A,B,C,D`
 
 `main.py`: running progress
+
 `model.py`: model architecture files
+
 `utils.py`: support functions like data partition
+
 `diagram.ipynb`: draw dissertation diagram
+
 `Formal_Exp.xlsx` : all experiments result
+
 `progress_stages.md`: project steps like a diary
 
 ## Project Page:
@@ -54,8 +61,6 @@ MovieLens:
 https://grouplens.org/datasets/movielens/
 
 We use 1M and 20M version to test 
-
-
 
 ## State-of-the-art approaches:
 SASRec: [code](https://github.com/kang205/SASRec), [pytorch_version](https://github.com/pmixer/SASRec.pytorch),  [paper](https://arxiv.org/abs/1808.09781)
