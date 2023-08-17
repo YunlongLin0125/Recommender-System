@@ -23,6 +23,7 @@ Contact: s2406121@ed.ac.uk
       - **Formal_runner/**
       - `main.py`
       - `model.py`
+      - `model_sasrec.py`
       - `utils.py`
   - **images/**
   - `diagram.ipynb`
@@ -204,7 +205,6 @@ python main.py --dataset=ml-20m --log_dir=test --model=all_action --device=cuda 
 
 
 
-
-
 ## Experiments Results (All models)
 
+[Results](Formal_Exp.xlsx)
