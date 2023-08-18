@@ -87,7 +87,7 @@ Metrics used are similar to those in [PinnerFormer](https://arxiv.org/abs/2205.0
 - **Recall@k**: Measures recommendation accuracy.
 - **P90 coverage@k**: Represents the smallest item sets that appear in the top-k lists of at least 90% of users.
 
-
+In training step, it is normal to see (recall, 0.66) because we do not evaluate the diversity in validation.
 
 ## Parameters
 - **Model Parameters**:
