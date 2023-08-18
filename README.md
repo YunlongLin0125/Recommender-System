@@ -13,10 +13,10 @@ This is a time-aware transfer learning-based window predictor for recommender sy
 - [State-of-the-Art Approaches](#state-of-the-art-approaches)
 - [Evaluation Metrics](#evaluation-metrics)
 - [Parameters](#parameters)
-- [Training & Inference](#training--inference)
+- [Model Training](#training)
   - [Model Train (Time-Unaware models)](#model-train-time-unaware-models)
   - [Model Train (Time-Aware models)](#model-train-time-aware-models)
-  - [Inference Only (Reproduce)](#inference-only-reproduce)
+- [Inference Only (Reproduce)](#inference-only-reproduce)
 - [Experiment Results](#experiment-results)
 - [Citation](#citation)
 
