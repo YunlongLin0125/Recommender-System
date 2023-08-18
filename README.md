@@ -1,11 +1,28 @@
 # Recommender Systems: looking further into the future
-This is an implementation of proposed time-aware transfer learning-based window predictor.
+## Overview
+This is a time-aware transfer learning-based window predictor for recommender systems. The project is built and tested on a Windows desktop with specifications: RTX 3060 GPU, torch version 1.13.1, torchvision 0.14.1, and python 3.9.
 
-Welcome to feedback and suggestion.
+[Project Page](https://dpmt.inf.ed.ac.uk/msc/project/6930)
 
-All experiments are tested under a windows desktop (RTX 3060 GPU) with torch version 1.13.1, torchvision 0.14.1 and python 3.9.
 
-## folder structure
+
+## Table of Contents
+
+- [Directory Structure](#directory-structure)
+- [Datasets](#datasets)
+- [State-of-the-Art Approaches](#state-of-the-art-approaches)
+- [Evaluation Metrics](#evaluation-metrics)
+- [Parameters](#parameters)
+- [Training & Inference](#training--inference)
+  - [Model Train (Time-Unaware models)](#model-train-time-unaware-models)
+  - [Model Train (Time-Aware models)](#model-train-time-aware-models)
+  - [Inference Only (Reproduce)](#inference-only-reproduce)
+- [Experiment Results](#experiment-results)
+- [Citation](#citation)
+
+
+
+## Directory Structure
 
 - **Recommender-System/**
   - **models/**
@@ -38,7 +55,7 @@ All experiments are tested under a windows desktop (RTX 3060 GPU) with torch ver
 
 **Formal_runner/**: bash files to carry out the formal experiments in `A,B,C,D`
 
-`main.py`: running progress
+`main.py`: running file, run the model.
 
 `model.py`: model architecture files
 
@@ -46,187 +63,133 @@ All experiments are tested under a windows desktop (RTX 3060 GPU) with torch ver
 
 `diagram.ipynb`: draw dissertation diagram
 
-`Formal_Exp.xlsx` : all experiments result
+`Formal_Exp.xlsx` : all experiment results
 
 `progress_stages.md`: project steps like a diary
 
-## Project Page:
-https://dpmt.inf.ed.ac.uk/msc/project/6930
-
-
-
-## Availabel datasets:
-
-MovieLens:
-https://grouplens.org/datasets/movielens/
-
-We use 1M and 20M version to test 
-
-## State-of-the-art approaches:
-SASRec: [code](https://github.com/kang205/SASRec), [pytorch_version](https://github.com/pmixer/SASRec.pytorch),  [paper](https://arxiv.org/abs/1808.09781)
-
-The first transformer-based sequential recommender systems, used as baseline in our project.
-
-
-
-## Evaluation metrics:
-
-Same as [PinnerFormer](https://arxiv.org/abs/2205.04507)
-
-* R@k: for Recommendation accuracy
-
-* P90 coverage@k: P90 coverage means the smallest item sets that appear in the top k lists of at least 90% of the users.
+## Datasets
+- **MovieLens**: [MovieLens Datasets](https://grouplens.org/datasets/movielens/). We use the 1M and 20M versions for testing.
 
   
 
+## State-of-the-Art Approaches
+- **SASRec**: 
+  - **GitHub Repo**: [code](https://github.com/kang205/SASRec)
+  - **PyTorch Version**: [pytorch_version](https://github.com/pmixer/SASRec.pytorch)
+  - **Paper**: [paper](https://arxiv.org/abs/1808.09781)
+  - **Description**: The first transformer-based sequential recommender system. Used as a baseline in our project.
+
+
+
+## Evaluation Metrics
+
+Metrics used are similar to those in [PinnerFormer](https://arxiv.org/abs/2205.04507):
+- **Recall@k**: Measures recommendation accuracy.
+- **P90 coverage@k**: Represents the smallest item sets that appear in the top-k lists of at least 90% of users.
+
+
+
 ## Parameters
-Parameters we you may want to change:
-
-### Model
-
-You can try different models by changing the parameter:
-
-#### Normal SASRec
-`
---model=normal_sasrec
-`
-
-#### SASRec_Window
-`
---model=sasrec_sampled
-`
-#### All Action
-`
---model=all_action
-`
-
-#### Dense All Action
-`
---model=dense_all_action
-`
-
-
-#### Combined
-
-`--model=integrated`
-
-#### Dense all action plus
-`
---model=dense_all_action_plus
-`
-
-#### Combined dense all action plus
-`
---model=dense_all_action_plus_plus`
-
-### eval_epoch
-
-`eval_epoch = 20`: evaluate each 20 epochs
-
-### num_epochs
-
-`num_epochs = 1000`:  set the limit of epoch number
-
-### log_dir
-
-`log_dir=test`:  create a folder `test` to record the training step
-
-### loss_function
-`loss_function=bce`
-or
-`loss_function=sampled_softmax`
+- **Model Parameters**:
+  - Normal SASRec: `--model=normal_sasrec`
+  - SASRec_Window: `--model=sasrec_sampled`
+  - All Action: `--model=all_action`
+  - Dense All Action:  `--model=dense_all_action`
+  - Combined: `--model=integrated`
+  - Dense all action plus:`--model = dense_all_action_plus`
+  - Combined dense all action plus: `--model=dense_all_action_plus_plus`
+- **Evaluation Epoch**: `eval_epoch = 20`
+- **Total Epochs**: `num_epochs = 1000`
+- **Logging Directory**: `log_dir=test`
+- **Loss Functions**: `loss_function=bce` or `loss_function=sampled_softmax`
+- **Device**: Change to `cpu` if no GPU is available: `--device=cpu`
+- **Item embedding freezing &  load item embedding**: `--frozen_item=true --load_emb=true` (transfer learning)
 
 
 
-### Frozen_item; load_emb
+## Training
+### Model Train (Time-Unaware models)
+- Change to correct directory: `cd models/SASRec`
+- **Training Commands (Some instances)**:
+  
+  - **Train from Scratch on MovieLens-1M dataset (All action)**: 
+  
+    ```bash
+    python main.py --dataset=processed/ml-1m --maxlen=200 --dropout_rate=0.2 --device=cuda --window_eval=true --eval_epoch=20 --num_epochs=1000  --lr=0.001 --loss_function=bce --log_dir=test --model=all_action
+    ```
+  - **Transfer learning  on MovieLens-1M dataset (All action)**: 
+  
+    - Transfer Learning approach will use the item embedding in **F_experiments/**
+  
+  
+    ```bash
+    python main.py --dataset=processed/ml-1m --maxlen=200 --dropout_rate=0.2 --device=cuda --window_eval=true --eval_epoch=5 --num_epochs=1000  --lr=0.001 --loss_function=sampled_softmax --log_dir=test --model=all_action --load_emb=true --frozen_item=true
+    ```
+  
+  - **Train from Scratch on MovieLens-20M dataset (All action)**: 
+  
+      ```bash
+      python main.py --dataset=processed/ml-20m --maxlen=200 --dropout_rate=0.2 --device=cuda --window_eval=true --eval_epoch=5 --num_epochs=1000  --lr=0.001 --loss_function=sampled_softmax --log_dir=test --temporal=true --model=all_action
+      ```
+  
+  - **Transfer learning  on MovieLens-20M dataset (All action)**: 
+  
+      ```bash
+      python main.py --dataset=processed/ml-20m --maxlen=200 --dropout_rate=0.2 --device=cuda --window_eval=true --eval_epoch=2 --num_epochs=1000  --lr=0.001 --loss_function=sampled_softmax --log_dir=test --temporal=true --model=all_action --frozen_item=true --load_emb=true
+      ```
 
-`--frozen_item=true --load_emb=true`
+### Model Train (Time-Aware models)
 
-start transfer learning: the model will use the embedding in **F_experiments/**
+- Change to correct directory: `cd models/T2VRec`
+- **Training Commands**:
+  - **Train from Scratch on MovieLens-20M dataset (T-All action)**:
+    ```bash
+    python main.py --dataset=ml-20m --log_dir=test --model=all_action --device=cuda --loss_function=sampled_softmax --eval_epoch=10 --num_epochs=1000 --temporal=true --lr=0.001 --maxlen=200
+    ```
+  
+  - **Transfer Learning on MovieLens-20M dataset (T-All action)**:
+  
+    ```bash
+    python main.py --dataset=ml-20m --log_dir=test --model=all_action --device=cuda --loss_function=sampled_softmax --eval_epoch=2 --num_epochs=1000 --temporal=true --lr=0.001 --maxlen=200 --load_emb=true --frozen_item=true
+    ```
+    
 
-### device
-change this to `cpu`, if you do not have gpu
-`--device=cpu`
+## Inference Only (Reproduce)
 
+- For evaluating pre-trained model performance directly, add:
+  - `--inference_only=true`
+  - Example of loading a pre-trained model: `--state_dict_path=F_experiments/T/ml-20m/transfer/sampled_softmax/lr=0.001/all_action/1/all_action.best.lr=0.001.layer=2.head=1.hidden=50.maxlen=200.pth`
 
+  
+  
+- **Training Commands**:
 
-## Model Train (Time-Unaware models)
+  - Change to correct directory:`cd models/SASRec` or `cd models/T2VRec`
 
-Before training, we should move to the correct folder:
+  - **Time Unaware model (All action)**:
 
-```
-cd models/SASRec
-```
+    ```bash
+    python main.py --dataset=ml-20m --log_dir=test --model=all_action --device=cuda --loss_function=sampled_softmax --eval_epoch=10 --num_epochs=1000 --temporal=true --lr=0.001 --maxlen=200 --inference_only=true --state_dict_path=F_experiments/T/ml-20m/transfer/sampled_softmax/lr=0.001/all_action/1/all_action.best.lr=0.001.layer=2.head=1.hidden=50.maxlen=200.pth
+    ```
 
-### Train from Scratch on MovieLens-1M dataset (All action)
+  - **Time Aware model (T-all action)**:
 
-```
-python main.py --dataset=processed/ml-1m --maxlen=200 --dropout_rate=0.2 --device=cuda --window_eval=true --eval_epoch=20 --num_epochs=1000  --lr=0.001 --loss_function=bce --log_dir=test --model=all_action
-```
-
-
-
-### Transfer learning  on MovieLens-1M dataset (All action)
-
-```
-python main.py --dataset=processed/ml-1m --maxlen=200 --dropout_rate=0.2 --device=cuda --window_eval=true --eval_epoch=5 --num_epochs=1000  --lr=0.001 --loss_function=sampled_softmax --log_dir=test --model=all_action --load_emb=true --frozen_item=true
-```
-
-
-
-### Train from Scratch on MovieLens-20M dataset (All action)
-
-```
-python main.py --dataset=processed/ml-20m --maxlen=200 --dropout_rate=0.2 --device=cuda --window_eval=true --eval_epoch=5 --num_epochs=1000  --lr=0.001 --loss_function=sampled_softmax --log_dir=test --temporal=true --model=all_action
-```
-
-
-
-### Transfer learning  on MovieLens-20M dataset (All action)
-
-```
-python main.py --dataset=processed/ml-20m --maxlen=200 --dropout_rate=0.2 --device=cuda --window_eval=true --eval_epoch=2 --num_epochs=1000  --lr=0.001 --loss_function=sampled_softmax --log_dir=test --temporal=true --model=all_action --frozen_item=true --load_emb=true
-```
-
-
-
-
-
-## Model Train (Time-Aware models)
-
-Before training, we should move to the correct folder:
-
-```
-cd models/T2VRec
-```
-### Train from Scratch on MovieLens-20M dataset (T-All action)
-
-```
-python main.py --dataset=ml-20m --log_dir=test --model=all_action --device=cuda --loss_function=sampled_softmax --eval_epoch=10 --num_epochs=1000 --temporal=true --lr=0.001 --maxlen=200
-```
-
-### Transfer learning  on MovieLens-20M dataset (T-All action)
-
-```
-python main.py --dataset=ml-20m --log_dir=test --model=all_action --device=cuda --loss_function=sampled_softmax --eval_epoch=2 --num_epochs=1000 --temporal=true --lr=0.001 --maxlen=200 --load_emb=true --frozen_item=true
-```
+    ```bash
+    python main.py --dataset=ml-20m --log_dir=test --model=all_action --device=cuda --loss_function=sampled_softmax --eval_epoch=10 --num_epochs=1000 --temporal=true --lr=0.001 --maxlen=200 --inference_only=true --state_dict_path=F_experiments/T/ml-20m/transfer/sampled_softmax/lr=0.001/t2v_all_action/1/all_action.best.lr=0.001.layer=2.head=1.hidden=50.maxlen=200.pth
+    ```
 
 
 
-## Experiments Results (All models)
-
+## Experiment Results
 ![Results Preview](images/data_preview.png)
 
-[Results](Formal_Exp.xlsx)
+[Detailed Results](Formal_Exp.xlsx)
 
 
 
+## Citation
 
-
-### Citation
-
-Our approach is an extention of SASRec model, more details can be found in author's [repo](https://github.com/kang205/SASRec), and here's the paper bib:
-
+Our approach extends the SASRec model. More details can be found in the author's [repository](https://github.com/kang205/SASRec). Citation:
 ```
 @inproceedings{kang2018self,
   title={Self-attentive sequential recommendation},
